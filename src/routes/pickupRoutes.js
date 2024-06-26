@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 
-const pickupControllers = require('../controllers/pickupController')
+const pickupControllers = require('../controllers/pickUpController')
 
 const { addPickUp, getPickUps, cancelPickUp } = pickupControllers
 
