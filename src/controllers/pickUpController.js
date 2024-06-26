@@ -1,0 +1,91 @@
+const PickUp = require('../models/pickUpModel')
+const Location = require('../models/locationModel')
+const mongoose = require('mongoose')
+
+// add new pick up
+exports.addPickUp = async (req, res) => {
+  const { location, itemType, date, timeStart, timeEnd, description } = req.body
+
+  const findLocation = await Location.findById(location)
+
+  if (!findLocation) {
+    return res.status(404).json({ message: 'Location not found' })
+  }
+
+  try {
+    const pickUp = new PickUp({
+      location: findLocation._id,
+      itemType,
+      user: req.user._id,
+      scheduledDate: date,
+      scheduledTimeStart: timeStart,
+      scheduledTimeEnd: timeEnd,
+      description
+    })
+
+    await pickUp.save()
+
+    res.status(201).json({
+      message: 'Pick up request added successfully',
+      data: pickUp
+    })
+  } catch (err) {
+    res.status(400).json({ message: err.message })
+  }
+}
+
+// get all pick ups
+exports.getPickUps = async (req, res) => {
+  const { page = 1, limit = 10, status } = req.query
+
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    sort: { createdAt: -1 },
+    populate: 'location'
+  }
+
+  const query = {
+    user: req.user._id
+  }
+  if (status) {
+    query.status = status
+  }
+
+  try {
+    const pickUps = await PickUp.paginate(query, options)
+
+    res.status(200).json({
+      data: pickUps,
+      count: pickUps.length
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+// cancel pick up
+exports.cancelPickUp = async (req, res) => {
+  const pickUpId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(pickUpId)) { return res.status(404).send('No pick up with that id') }
+
+  try {
+    const pickUp = await PickUp.findById(pickUpId)
+
+    if (!pickUp) {
+      return res.status(404).json({ message: 'Pick up not found' })
+    }
+
+    pickUp.status = 'cancelled'
+
+    await pickUp.save()
+
+    res.status(200).json({
+      message: 'Pick up cancelled successfully',
+      data: pickUp
+    })
+  } catch (error) {
+    res.status(500).json(error)
+  }
+}
