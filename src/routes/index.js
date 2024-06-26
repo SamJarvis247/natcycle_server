@@ -3,7 +3,7 @@ const router = express.Router()
 
 const authRoutes = require('./authRoutes')
 const userRoutes = require('./userRoutes')
-const pickUpRoutes = require('./pickUpRoutes')
+const pickUpRoutes = require('./pickupRoutes')
 const notificationRoutes = require('./notificationRoutes')
 const locationRoutes = require('./locationRoutes')
 
