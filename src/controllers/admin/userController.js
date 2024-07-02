@@ -50,35 +50,6 @@ exports.getUserByEmail = async (req, res) => {
   }
 }
 
-// admin update user.account with savings, checkings, number
-exports.updateUserAccount = async (req, res) => {
-  const userId = req.params.id
-
-  const { savings, checking, number } = req.body
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) { return res.status(404).send('No user with that id') }
-
-  try {
-    const user = await User.findById(userId)
-
-    user.account = {
-      number: number || user.account.number,
-      savings: savings || user.account.savings,
-      checking: checking || user.account.checking
-    }
-
-    await user.save()
-
-    res.status(200).json({
-      status: 'success',
-      message: 'User Account Updated Successfully',
-      data: user
-    })
-  } catch (error) {
-    res.status(500).json(error)
-  }
-}
-
 exports.deleteUser = async (req, res) => {
   const userId = req.params.id
 

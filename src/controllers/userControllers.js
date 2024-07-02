@@ -1,6 +1,6 @@
 const User = require('../models/userModel')
 const cloudinaryUpload = require('../config/cloudinaryUpload')
-
+const mongoose = require('mongoose')
 const { successResponse, errorResponse } = require('../utility/response')
 
 // update the user's profile
@@ -10,7 +10,8 @@ exports.updateProfile = async (req, res) => {
     {
       firstName: req.body.firstName,
       lastName: req.body.lastName,
-      email: req.body.email
+      email: req.body.email,
+      impactMeasurement: req.body.impactMeasurement,
     },
     { new: true }
   )
@@ -74,5 +75,117 @@ exports.getMe = async (req, res) => {
   } catch (err) {
     console.log('Error: ', err)
     res.status(400).json(err)
+  }
+}
+
+// admin routes
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('firstName lastName email phone location createdAt')
+    return res.status(200).json({
+      message: 'Users Fetched Successfully',
+      data: users
+    })
+  } catch (err) {
+    console.log('Error: ', err)
+    res.status(400).json(err)
+  }
+}
+
+// get user by id
+exports.getUserById = async (req, res) => {
+  const userId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) { return res.status(404).send('No user with that id') }
+
+  try {
+    const user = await User.findById(userId)
+    return res.status(200).json({
+      message: 'User Fetched Successfully',
+      data: user
+    })
+  } catch (err) {
+    console.log('Error: ', err)
+    res.status(400).json(err)
+  }
+}
+
+// get user by email
+
+exports.getUserByEmail = async (req, res) => {
+  const email = req.params.email
+
+  try {
+    const user = await User.findOne({ email })
+    return res.status(200).json({
+      message: 'User Fetched Successfully',
+      data: user
+    })
+  } catch (err) {
+    console.log('Error: ', err)
+    res.status(400).json(err)
+  }
+}
+
+exports.deleteUser = async (req, res) => {
+  const userId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) { return res.status(404).send('No user with that id') }
+
+  try {
+    await User.findByIdAndDelete(userId)
+
+    res.status(200).json({
+      status: 'success',
+      message: 'User Deleted Successfully'
+    })
+  } catch (error) {
+    res.status(500).json(error)
+  }
+}
+
+// disable user account
+exports.disableUser = async (req, res) => {
+  const userId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) { return res.status(404).send('No user with that id') }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isBlocked: true },
+      { new: true }
+    )
+
+    res.status(200).json({
+      status: 'success',
+      message: 'User Account Disabled Successfully',
+      data: user
+    })
+  } catch (error) {
+    res.status(500).json(error)
+  }
+}
+
+// enable user account
+exports.enableUser = async (req, res) => {
+  const userId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) { return res.status(404).send('No user with that id') }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isBlocked: false },
+      { new: true }
+    )
+
+    res.status(200).json({
+      status: 'success',
+      message: 'User Account Enabled Successfully',
+      data: user
+    })
+  } catch (error) {
+    res.status(500).json(error)
   }
 }

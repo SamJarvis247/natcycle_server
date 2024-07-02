@@ -59,6 +59,11 @@ const UserSchema = mongoose.Schema(
       required: false,
       default: false
     },
+    impactMeasurement: {
+      type: String,
+      required: true,
+      default: 'Birds'
+    },
     otp: {
       type: String,
       required: false

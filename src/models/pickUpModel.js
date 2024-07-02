@@ -30,7 +30,7 @@ const pickUpSchema = new mongoose.Schema({
   scheduledTimeEnd: {
     type: String
   },
-  points_earned: {
+  pointsEarned: {
     type: Number,
     required: false,
     default: 0

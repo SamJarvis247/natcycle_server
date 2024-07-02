@@ -52,6 +52,9 @@ exports.getPickUps = async (req, res) => {
     query.status = status
   }
 
+  // get only pick ups that are not cancelled
+  query.status = { $ne: 'cancelled' }
+
   try {
     const pickUps = await PickUp.paginate(query, options)
 
@@ -83,6 +86,102 @@ exports.cancelPickUp = async (req, res) => {
 
     res.status(200).json({
       message: 'Pick up cancelled successfully',
+      data: pickUp
+    })
+  } catch (error) {
+    res.status(500).json(error)
+  }
+}
+
+exports.adminGetPickUps = async (req, res) => {
+  const { page = 1, limit = 10, status } = req.query
+
+  const query = {}
+  if (status) {
+    query.status = status
+  }
+
+  const sort = {}
+  if (req.query.sort === 'newest') {
+    sort.createdAt = -1
+  } else if (req.query.sort === 'oldest') {
+    sort.createdAt = 1
+  } else {
+    sort.createdAt = -1
+  }
+
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    sort: { createdAt: -1 },
+    populate: 'location user'
+  }
+
+  try {
+    const pickUps = await PickUp.paginate(query, options)
+
+    res.status(200).json({
+      data: pickUps,
+      count: pickUps.length
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+// mark pick up as completed and add pointsEarned
+exports.completePickUp = async (req, res) => {
+  const pickUpId = req.params.id
+
+  const { pointsEarned } = req.body
+
+  if (!mongoose.Types.ObjectId.isValid(pickUpId)) { return res.status(404).send('No pick up with that id') }
+
+  try {
+    const pickUp = await PickUp.findById(pickUpId)
+
+    if (!pickUp) {
+      return res.status(404).json({ message: 'Pick up not found' })
+    }
+
+    if (pickUp.status === 'completed') {
+      return res.status(400).json({ message: 'Pick up already completed' })
+    }
+
+    pickUp.status = 'completed'
+    pickUp.completedAt = new Date()
+
+    // add points earned
+    pickUp.pointsEarned = pointsEarned
+
+    await pickUp.save()
+
+    res.status(200).json({
+      message: 'Pick up completed successfully',
+      data: pickUp
+    })
+  } catch (error) {
+    res.status(500).json(error)
+  }
+}
+
+// delete pick up
+exports.deletePickUp = async (req, res) => {
+  const pickUpId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(pickUpId)) { return res.status(404).send('No pick up with that id') }
+
+  try {
+    const pickUp = await PickUp.findById(pickUpId)
+
+    if (!pickUp) {
+      return res.status(404).json({ message: 'Pick up not found' })
+    }
+
+    await pickUp.remove()
+
+    res.status(200).json({
+      message: 'Pick up deleted successfully',
       data: pickUp
     })
   } catch (error) {
