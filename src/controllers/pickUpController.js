@@ -1,6 +1,8 @@
 const PickUp = require('../models/pickUpModel')
 const Location = require('../models/locationModel')
 const mongoose = require('mongoose')
+const sendNotification = require('../service/notificationService')
+const User = require('../models/userModel')
 
 // add new pick up
 exports.addPickUp = async (req, res) => {
@@ -155,6 +157,17 @@ exports.completePickUp = async (req, res) => {
     pickUp.pointsEarned = pointsEarned
 
     await pickUp.save()
+
+    // add points to user
+    const user = await User.findById(pickUp.user)
+    user.points += pointsEarned
+    await user.save()
+
+    await sendNotification(
+      'Pick up completed',
+      `Your pick up request has been completed. You have earned ${pointsEarned} points`,
+      pickUp.user
+    )
 
     res.status(200).json({
       message: 'Pick up completed successfully',

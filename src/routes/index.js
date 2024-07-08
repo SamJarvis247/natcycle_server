@@ -10,7 +10,7 @@ const locationRoutes = require('./locationRoutes')
 router.use('/auth', authRoutes)
 router.use('/profile', userRoutes)
 router.use('/pickup', pickUpRoutes)
-router.use('/notification', notificationRoutes)
+router.use('/notifications', notificationRoutes)
 router.use('/location', locationRoutes)
 
 module.exports = router

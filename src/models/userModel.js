@@ -43,7 +43,7 @@ const UserSchema = mongoose.Schema(
       required: false,
       default: false
     },
-    point: {
+    pointsEarned: {
       type: Number,
       required: false,
       default: 0

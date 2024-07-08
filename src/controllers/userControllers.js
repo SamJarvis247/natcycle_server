@@ -11,7 +11,7 @@ exports.updateProfile = async (req, res) => {
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       email: req.body.email,
-      impactMeasurement: req.body.impactMeasurement,
+      impactMeasurement: req.body.impactMeasurement
     },
     { new: true }
   )

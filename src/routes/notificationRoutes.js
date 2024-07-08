@@ -5,7 +5,9 @@ const notificationController = require('../controllers/notificationController')
 
 const { getNotifications, markAsRead, deleteNotification } = notificationController
 
-router.get('/', getNotifications)
+const { isAuth, isAdmin } = require('../middleware/authMiddleware')
+
+router.get('/', isAuth, getNotifications)
 
 router.put('/:id', markAsRead)
 

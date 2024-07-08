@@ -8,7 +8,7 @@ const {
   adminGetPickUps, completePickUp, deletePickUp
 } = pickupControllers
 
-const { isAuth } = require('../middleware/authMiddleware')
+const { isAuth, isAdmin } = require('../middleware/authMiddleware')
 
 router.post('/', isAuth, addPickUp)
 
@@ -18,7 +18,7 @@ router.delete('/:id', isAuth, cancelPickUp)
 
 router.get('/admin', isAuth, adminGetPickUps)
 
-router.put('/complete/:id', isAuth, completePickUp)
+router.put('/complete/:id', isAuth, isAdmin, completePickUp)
 
 router.delete('/delete/:id', isAuth, deletePickUp)
 
