@@ -48,6 +48,11 @@ const UserSchema = mongoose.Schema(
       required: false,
       default: 0
     },
+    totalItemsCollected: {
+      type: Number,
+      required: false,
+      default: 0
+    },
     badges: [
       {
         type: mongoose.Schema.Types.ObjectId,

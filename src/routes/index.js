@@ -6,11 +6,13 @@ const userRoutes = require('./userRoutes')
 const pickUpRoutes = require('./pickupRoutes')
 const notificationRoutes = require('./notificationRoutes')
 const locationRoutes = require('./locationRoutes')
+const badgeRoutes = require('./badgeRoutes')
 
 router.use('/auth', authRoutes)
 router.use('/profile', userRoutes)
 router.use('/pickup', pickUpRoutes)
 router.use('/notifications', notificationRoutes)
 router.use('/location', locationRoutes)
+router.use('/badges', badgeRoutes)
 
 module.exports = router

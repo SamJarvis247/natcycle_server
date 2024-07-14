@@ -35,6 +35,11 @@ const pickUpSchema = new mongoose.Schema({
     required: false,
     default: 0
   },
+  itemsCount: {
+    type: Number,
+    required: false,
+    default: 0
+  },
   status: {
     type: String,
     required: true,

@@ -135,7 +135,7 @@ exports.adminGetPickUps = async (req, res) => {
 exports.completePickUp = async (req, res) => {
   const pickUpId = req.params.id
 
-  const { pointsEarned } = req.body
+  const { pointsEarned, itemsCount } = req.body
 
   if (!mongoose.Types.ObjectId.isValid(pickUpId)) { return res.status(404).send('No pick up with that id') }
 
@@ -152,6 +152,7 @@ exports.completePickUp = async (req, res) => {
 
     pickUp.status = 'completed'
     pickUp.completedAt = new Date()
+    pickUp.itemsCount = itemsCount
 
     // add points earned
     pickUp.pointsEarned = pointsEarned
@@ -160,7 +161,11 @@ exports.completePickUp = async (req, res) => {
 
     // add points to user
     const user = await User.findById(pickUp.user)
-    user.points += pointsEarned
+
+    user.pointsEarned += pointsEarned
+
+    user.totalItemsCollected += itemsCount
+
     await user.save()
 
     await sendNotification(

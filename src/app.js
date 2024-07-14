@@ -30,8 +30,8 @@ const myLogger = function (req, res, next) {
 }
 app.use(myLogger)
 
-app.use(express.json({ limit: 2000000 }))
-app.use(express.urlencoded({ limit: 2000000, extended: false }))
+app.use(express.json({ limit: 5000000 }))
+app.use(express.urlencoded({ limit: 5000000, extended: false }))
 app.use(express.json())
 
 app.set('trust proxy', 1)
