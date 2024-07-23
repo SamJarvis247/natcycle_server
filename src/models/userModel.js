@@ -72,6 +72,16 @@ const UserSchema = mongoose.Schema(
     otp: {
       type: String,
       required: false
+    },
+    referralId: {
+      type: String,
+      required: false,
+      default: ''
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false
     }
   },
   {

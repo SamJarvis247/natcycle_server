@@ -38,7 +38,7 @@ exports.addPickUp = async (req, res) => {
 
 // get all pick ups
 exports.getPickUps = async (req, res) => {
-  const { page = 1, limit = 10, status } = req.query
+  const { page = 1, limit = 10, status, date } = req.query
 
   const options = {
     page: parseInt(page, 10),
@@ -50,8 +50,13 @@ exports.getPickUps = async (req, res) => {
   const query = {
     user: req.user._id
   }
+
   if (status) {
     query.status = status
+  }
+
+  if (date) {
+    query.scheduledDate = date
   }
 
   // get only pick ups that are not cancelled

@@ -5,7 +5,7 @@ const userControllers = require('../controllers/userControllers')
 const {
   updateProfile, updateProfilePicture, getMe,
   getAllUsers,
-  getUserById, disableUser, enableUser
+  getUserById, disableUser, enableUser, getReferrals
 } = userControllers
 
 const { isAuth } = require('../middleware/authMiddleware')
@@ -24,5 +24,7 @@ router.get('/:id', isAuth, getUserById)
 router.put('/disable/:id', isAuth, disableUser)
 
 router.put('/enable/:id', isAuth, enableUser)
+
+router.get('/referrals/:id', isAuth, getReferrals)
 
 module.exports = router

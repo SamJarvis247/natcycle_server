@@ -3,7 +3,8 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { generateOtp } = require('../utility/core')
 const { sendEmailConfirmationOtp } = require('../service/emailService')
-
+const crypto = require('crypto')
+const awardPoints = require('../service/pointService')
 // Register
 exports.register = async (req, res) => {
   // Check if user is already in the database
@@ -14,19 +15,39 @@ exports.register = async (req, res) => {
   const salt = await bcrypt.genSalt(10)
   const hashedPassword = await bcrypt.hash(req.body.password, salt)
 
+  // generate referral code
+  const newReferralId = crypto.randomBytes(3).toString('hex').toUpperCase()
+
+  let referredBy
+
+  if (req.body.referralId) {
+    referredBy = await User.findOne({ referralId: req.body.referralId })
+
+    if (!referredBy) {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid referral code'
+      })
+    }
+  }
+
   // Create a new user
   const user = new User({
     firstName: req.body.firstName,
     lastName: req.body.lastName,
     email: req.body.email,
     password: hashedPassword,
-    isEmailConfirmed: false
+    isEmailConfirmed: false,
+    referralId: newReferralId,
+    referredBy: referredBy._id || null
   })
 
   try {
     await user.save()
 
     await sendEmailConfirmationOtp(user.email, User.firstName, user.otp)
+
+    await awardPoints(referredBy)
 
     return res.status(200).json({
       message: 'User registered successfully'

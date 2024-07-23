@@ -189,3 +189,21 @@ exports.enableUser = async (req, res) => {
     res.status(500).json(error)
   }
 }
+
+// get  the users a user has referred
+exports.getReferrals = async (req, res) => {
+  const userId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) { return res.status(404).send('No user with that id') }
+
+  try {
+    const referrals = await User.find({ referredBy: userId })
+    return res.status(200).json({
+      message: 'Referrals Fetched Successfully',
+      data: referrals
+    })
+  } catch (err) {
+    console.log('Error: ', err)
+    res.status(400).json(err)
+  }
+}
