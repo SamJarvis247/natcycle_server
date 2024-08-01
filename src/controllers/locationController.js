@@ -2,15 +2,18 @@ const Location = require('../models/locationModel')
 
 // add new location
 exports.addLocation = async (req, res) => {
-  const { name, address, latitude, longitude, state } = req.body
+  const { name, address, latitude, longitude, state, city, country, googleResults } = req.body
 
   try {
     const location = new Location({
       name,
       address,
-      latitude: latitude || req.body.latitude,
-      longitude: longitude || req.body.longitude,
+      city,
+      latitude,
+      longitude,
       state,
+      country,
+      metadata: googleResults,
       user: req.user._id
     })
 

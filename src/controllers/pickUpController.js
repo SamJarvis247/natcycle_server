@@ -6,7 +6,7 @@ const User = require('../models/userModel')
 
 // add new pick up
 exports.addPickUp = async (req, res) => {
-  const { location, itemType, date, timeStart, timeEnd, description } = req.body
+  const { itemType, location, date, timeStart, timeEnd, description } = req.body
 
   const findLocation = await Location.findById(location)
 
@@ -138,9 +138,16 @@ exports.adminGetPickUps = async (req, res) => {
 
 // mark pick up as completed and add pointsEarned
 exports.completePickUp = async (req, res) => {
+  const recyclablesWithPoints = [
+    { item: 'Plastic Bottles', points: 10 },
+    { item: 'Fabric', points: 5 },
+    { item: 'Glass', points: 8 },
+    { item: 'Mixed', points: 2 }
+  ]
+
   const pickUpId = req.params.id
 
-  const { pointsEarned, itemsCount } = req.body
+  const { itemsCount } = req.body
 
   if (!mongoose.Types.ObjectId.isValid(pickUpId)) { return res.status(404).send('No pick up with that id') }
 
@@ -153,6 +160,27 @@ exports.completePickUp = async (req, res) => {
 
     if (pickUp.status === 'completed') {
       return res.status(400).json({ message: 'Pick up already completed' })
+    }
+    // const calculatePoints earned
+
+    // let pointsEarned = 0
+
+    // for (let i = 0; i < itemsCount.length; i++) {
+    //   const item = itemsCount[i]
+    //   const recyclable = recyclablesWithPoints.find((r) => r.item === item.itemType)
+    //   if (recyclable) {
+    //     pointsEarned += recyclable.points * item.count
+    //   }
+    // }
+
+    let pointsEarned = 0
+
+    const recyclable = recyclablesWithPoints.find((r) => r.item === pickUp.itemType)
+
+    console.log('recyclable', recyclable)
+
+    if (recyclable) {
+      pointsEarned = recyclable.points * itemsCount
     }
 
     pickUp.status = 'completed'
@@ -168,6 +196,7 @@ exports.completePickUp = async (req, res) => {
     const user = await User.findById(pickUp.user)
 
     user.pointsEarned += pointsEarned
+    user.carbonUnits += pointsEarned
 
     user.totalItemsCollected += itemsCount
 

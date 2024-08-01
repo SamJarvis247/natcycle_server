@@ -11,10 +11,10 @@ const pickUpSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    default: 'bottles'
+    default: 'Plastic Bottles'
   },
   description: {
-    type: String,
+    type: Number,
     required: false
   },
   scheduledDate: {

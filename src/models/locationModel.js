@@ -4,13 +4,11 @@ const mongoosePaginate = require('mongoose-paginate-v2')
 const locationSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
-    trim: true,
+    required: true
   },
   address: {
     type: String,
-    required: true,
-    trim: true
+    required: true
   },
   latitude: {
     type: Number,
@@ -22,16 +20,26 @@ const locationSchema = new mongoose.Schema({
   },
   state: {
     type: String,
-    required: true,
-    trim: true
+    required: true
+  },
+  city: {
+    type: String,
+    required: false
   },
   hidden: {
     type: Boolean,
     default: false
   },
+  country: {
+    type: String
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  metadata: {
+    type: Object,
+    ref: 'Metadata'
   }
 })
 
