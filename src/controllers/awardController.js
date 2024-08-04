@@ -3,7 +3,7 @@ const cloudinaryUpload = require('../config/cloudinaryUpload')
 const User = require('../models/userModel')
 
 exports.addAward = async (req, res) => {
-  const { name, description, pointsRequired } = req.body
+  const { name, description, pointsRequired, sponsorName, sponsorLink } = req.body
 
   try {
     const findAward = await Rewards.findOne({ name })
@@ -22,7 +22,9 @@ exports.addAward = async (req, res) => {
         public_id: result.public_id,
         url: result.secure_url
       },
-      pointsRequired
+      pointsRequired,
+      sponsorName,
+      sponsorLink: sponsorLink || ''
     })
 
     await newAward.save()

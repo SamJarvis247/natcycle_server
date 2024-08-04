@@ -27,6 +27,14 @@ const awardSchema = new mongoose.Schema({
       type: String,
       required: false
     }
+  },
+  sponsorName: {
+    type: String,
+    required: false
+  },
+  sponsorLink: {
+    type: String,
+    required: false
   }
 })
 
