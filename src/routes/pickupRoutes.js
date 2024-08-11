@@ -4,7 +4,7 @@ const router = express.Router()
 const pickupControllers = require('../controllers/pickUpController')
 
 const {
-  addPickUp, getPickUps, cancelPickUp,
+  addPickUp, getPickUpById, getPickUps, cancelPickUp,
   adminGetPickUps, completePickUp, deletePickUp
 } = pickupControllers
 
@@ -17,6 +17,8 @@ router.get('/', isAuth, getPickUps)
 router.delete('/:id', isAuth, cancelPickUp)
 
 router.get('/admin', isAuth, adminGetPickUps)
+
+router.get('/:id', isAuth, getPickUpById)
 
 router.put('/complete/:id', isAuth, isAdmin, completePickUp)
 

@@ -36,6 +36,29 @@ exports.addPickUp = async (req, res) => {
   }
 }
 
+// get pick up by id
+exports.getPickUpById = async (req, res) => {
+  const pickUpId = req.params.id
+
+  if (!mongoose.Types.ObjectId.isValid(pickUpId)) { return res.status(404).send('No pick up with that id') }
+
+  try {
+    const pickUp = await PickUp.findById(pickUpId).populate('user')
+      .populate('location')
+
+    if (!pickUp) {
+      return res.status(404).json({ message: 'Pick up not found' })
+    }
+
+    res.status(200).json({
+      data: pickUp
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json(error)
+  }
+}
+
 // get all pick ups
 exports.getPickUps = async (req, res) => {
   const { page = 1, limit = 10, status, date } = req.query
