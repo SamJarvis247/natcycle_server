@@ -38,6 +38,16 @@ const UserSchema = mongoose.Schema(
       required: false,
       trim: true
     },
+    phoneNumber: {
+      type: String,
+      required: false,
+      trim: true
+    },
+    isEmailVerified: {
+      type: Boolean,
+      required: false,
+      default: false
+    },
     isAdmin: {
       type: Boolean,
       required: false,

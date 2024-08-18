@@ -13,10 +13,10 @@ router.post('/signin', login)
 
 router.post('/signout', logout)
 
-router.post('/verify-email', verifyEmail)
+router.post('/verify-email', isAuth, verifyEmail)
 
 router.post('/change-password', isAuth, changePassword)
 
-router.post('/request-otp', resendOtp)
+router.get('/request-otp', isAuth, resendOtp)
 
 module.exports = router

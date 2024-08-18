@@ -2,7 +2,7 @@ const User = require('../models/userModel')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { generateOtp } = require('../utility/core')
-const { sendEmailConfirmationOtp } = require('../service/emailService')
+const { sendEmailConfirmationOtp, sendWelcomeEmail } = require('../service/emailService')
 const crypto = require('crypto')
 const awardPoints = require('../service/pointService')
 // Register
@@ -31,19 +31,26 @@ exports.register = async (req, res) => {
     }
   }
 
+  const otp = generateOtp()
+
+  console.log('____otp____', otp)
+
   // Create a new user
   const user = new User({
     firstName: req.body.firstName,
     lastName: req.body.lastName,
     email: req.body.email,
     password: hashedPassword,
-    isEmailConfirmed: false,
+    isEmailVerified: false,
     referralId: newReferralId,
-    referredBy: referredBy._id || null
+    referredBy: referredBy._id || null,
+    otp
   })
 
   try {
     await user.save()
+
+    await sendWelcomeEmail(user.email, user.firstName)
 
     await sendEmailConfirmationOtp(user.email, User.firstName, user.otp)
 
@@ -102,7 +109,7 @@ exports.verifyEmail = async (req, res) => {
 
   const user = req.user
 
-  if (user.isEmailConfirmed) {
+  if (user.isEmailVerified) {
     return res.status(400).json({
       status: false,
       message: 'Email has already been verified'
@@ -126,7 +133,7 @@ exports.verifyEmail = async (req, res) => {
   try {
     const updatedUser = await User.findOneAndUpdate(
       user._id,
-      { isEmailConfirmed: true, otp: '' },
+      { isEmailVerified: true, otp: '' },
       { new: true }
     )
 
@@ -147,7 +154,7 @@ exports.verifyEmail = async (req, res) => {
 exports.resendOtp = async (req, res) => {
   const user = req.user
 
-  if (user.isEmailConfirmed) {
+  if (user.isEmailVerified) {
     return res.status(400).json({
       status: false,
       message: 'Email has already been verified'
@@ -155,6 +162,8 @@ exports.resendOtp = async (req, res) => {
   }
 
   const otp = generateOtp()
+
+  console.log('____otp____', otp)
 
   try {
     await User.findOneAndUpdate(
