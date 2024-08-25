@@ -1,6 +1,50 @@
 // const  mongoose from 'mongoose';
 const mongoose = require('mongoose')
 
+// glass, plastic, paper, metal, organic, e-waste, hazardous
+const ItemsCountSchema = mongoose.Schema(
+  {
+    glass: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+    plastic: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+    fabric: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+    paper: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+    metal: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+    organic: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+    eWaste: {
+      type: Number,
+      required: true,
+      default: 0
+    }
+  },
+  {
+    timestamps: true
+  }
+)
+
 const UserSchema = mongoose.Schema(
   {
     firstName: {
@@ -97,6 +141,19 @@ const UserSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: false
+    },
+    itemsCount: {
+      type: ItemsCountSchema,
+      required: false,
+      default: {
+        glass: 0,
+        plastic: 0,
+        fabric: 0,
+        paper: 0,
+        metal: 0,
+        organic: 0,
+        eWaste: 0
+      }
     }
   },
   {

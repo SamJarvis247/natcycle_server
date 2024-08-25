@@ -172,7 +172,7 @@ exports.resendOtp = async (req, res) => {
       { new: true }
     )
 
-    await sendEmailConfirmationOtp(user.email, otp)
+    await sendEmailConfirmationOtp(user.email, user.firstName, otp)
 
     res.status(200).json({
       status: true,
@@ -266,6 +266,8 @@ exports.initiatePasswordReset = async (req, res) => {
 
   const otp = generateOtp()
 
+  console.log('____otp____', otp)
+
   try {
     await User.findOneAndUpdate(
       { _id: user._id },
@@ -273,7 +275,7 @@ exports.initiatePasswordReset = async (req, res) => {
       { new: true }
     )
 
-    await sendEmailConfirmationOtp(user.email, otp)
+    await sendEmailConfirmationOtp(user.email, user.firstName, otp)
 
     res.status(200).json({
       status: true,

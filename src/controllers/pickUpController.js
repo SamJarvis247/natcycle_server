@@ -162,10 +162,10 @@ exports.adminGetPickUps = async (req, res) => {
 // mark pick up as completed and add pointsEarned
 exports.completePickUp = async (req, res) => {
   const recyclablesWithPoints = [
-    { item: 'Plastic Bottles', points: 10 },
-    { item: 'Fabric', points: 5 },
-    { item: 'Glass', points: 8 },
-    { item: 'Mixed', points: 2 }
+    { item: 'plastic', points: 10 },
+    { item: 'fabric', points: 5 },
+    { item: 'glass', points: 8 },
+    { item: 'mixed', points: 2 }
   ]
 
   const pickUpId = req.params.id
@@ -184,17 +184,6 @@ exports.completePickUp = async (req, res) => {
     if (pickUp.status === 'completed') {
       return res.status(400).json({ message: 'Pick up already completed' })
     }
-    // const calculatePoints earned
-
-    // let pointsEarned = 0
-
-    // for (let i = 0; i < itemsCount.length; i++) {
-    //   const item = itemsCount[i]
-    //   const recyclable = recyclablesWithPoints.find((r) => r.item === item.itemType)
-    //   if (recyclable) {
-    //     pointsEarned += recyclable.points * item.count
-    //   }
-    // }
 
     let pointsEarned = 0
 
@@ -222,6 +211,17 @@ exports.completePickUp = async (req, res) => {
     user.carbonUnits += pointsEarned
 
     user.totalItemsCollected += itemsCount
+
+    // add count to user items count
+    if (pickUp.itemType === 'plastic') {
+      user.itemsCount.plastic += itemsCount
+    } else if (pickUp.itemType === 'fabric') {
+      user.itemsCount.fabric += itemsCount
+    } else if (pickUp.itemType === 'glass') {
+      user.itemsCount.glass += itemsCount
+    } else if (pickUp.itemType === 'mixed') {
+      user.itemsCount.mixed += itemsCount
+    }
 
     await user.save()
 
