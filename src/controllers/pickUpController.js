@@ -124,9 +124,20 @@ exports.cancelPickUp = async (req, res) => {
 }
 
 exports.adminGetPickUps = async (req, res) => {
-  const { page = 1, limit = 10, status } = req.query
+  const { page = 1, limit = 10, status, userId } = req.query
 
   const query = {}
+
+  if (userId) {
+    const user = await User.findById(userId)
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    query.user = user._id
+  }
+
   if (status) {
     query.status = status
   }

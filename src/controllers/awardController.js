@@ -114,7 +114,8 @@ exports.deleteAward = async (req, res) => {
 }
 
 exports.userRedeemRewardWithPoints = async (req, res) => {
-  const { id, userId } = req.params
+  const userId = req.user._id
+  const { id } = req.params
 
   try {
     const findReward = await Rewards.findById(id)
@@ -130,6 +131,15 @@ exports.userRedeemRewardWithPoints = async (req, res) => {
         message: 'User with Id does  not exist'
       })
     }
+
+    // make sure user has not redeemed the reward
+    if (user.redeemedRewards.includes(id)) {
+      return res.status(400).json({
+        message: 'You have already redeemed this reward'
+      })
+    }
+
+    console.log(user.pointsEarned, findReward.pointsRequired)
 
     if (user.pointsEarned < findReward.pointsRequired) {
       return res.status(400).json({
@@ -150,7 +160,31 @@ exports.userRedeemRewardWithPoints = async (req, res) => {
     await user.save()
   } catch (error) {
     return res.status(400).json({
-      message: 'error in redeeming reward'
+      message: error.message
+    })
+  }
+}
+
+exports.getUserRewards = async (req, res) => {
+  const userId = req.user._id
+
+  try {
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({
+        message: 'User with Id does  not exist'
+      })
+    }
+
+    const rewards = await Rewards.find({ _id: { $in: user.redeemedRewards } })
+
+    return res.status(200).json({
+      message: 'Rewards fetched successfully',
+      data: rewards
+    })
+  } catch (error) {
+    return res.status(400).json({
+      message: error.message
     })
   }
 }

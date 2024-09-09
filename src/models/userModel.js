@@ -154,7 +154,14 @@ const UserSchema = mongoose.Schema(
         organic: 0,
         eWaste: 0
       }
-    }
+    },
+    redeemedRewards: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Reward',
+        default: []
+      }
+    ]
   },
   {
     timestamps: true
