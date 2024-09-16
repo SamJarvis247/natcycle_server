@@ -1,4 +1,5 @@
 const Rewards = require('../models/awardModel')
+const RedeemAward = require('../models/redeemAwardModel')
 const cloudinaryUpload = require('../config/cloudinaryUpload')
 const User = require('../models/userModel')
 
@@ -148,11 +149,20 @@ exports.userRedeemRewardWithPoints = async (req, res) => {
     }
 
     // check if user has already redeemed
-    if (user.redeemedRewards.includes(id)) {
+    const redeemAward = await RedeemAward.findOne({ userId })
+
+    if (redeemAward) {
       return res.status(400).json({
-        message: 'You have already redeemed this reward'
+        message: 'You have already redeemed a reward'
       })
     }
+
+    const newRedeemAward = new RedeemAward({
+      awardId: id,
+      userId
+    })
+
+    await newRedeemAward.save()
 
     user.pointsEarned -= findReward.pointsRequired
     user.redeemedRewards.push(id)
@@ -169,22 +179,52 @@ exports.getUserRewards = async (req, res) => {
   const userId = req.user._id
 
   try {
-    const user = await User.findById(userId)
-    if (!user) {
+    const userRewards = await RedeemAward.find({ userId }).populate('awardId')
+
+    return res.status(200).json({
+      data: userRewards,
+      message: 'User rewards fetched successfully'
+    })
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
+}
+
+exports.adminUpdateRedeemStatus = async (req, res) => {
+  const { id } = req.params
+  const { status } = req.body
+
+  try {
+    const redeemAward = await RedeemAward.findById(id)
+
+    if (!redeemAward) {
       return res.status(404).json({
-        message: 'User with Id does  not exist'
+        message: 'Redeem award not found'
       })
     }
 
-    const rewards = await Rewards.find({ _id: { $in: user.redeemedRewards } })
+    redeemAward.status = status
+
+    await redeemAward.save()
 
     return res.status(200).json({
-      message: 'Rewards fetched successfully',
-      data: rewards
+      message: 'Redeem award status updated successfully',
+      data: redeemAward
     })
-  } catch (error) {
-    return res.status(400).json({
-      message: error.message
+  } catch (err) {
+    return res.status(400).json({ message: err.message })
+  }
+}
+
+exports.adminGetRedeemAwards = async (req, res) => {
+  try {
+    const redeemAwards = await RedeemAward.find().populate('awardId').populate('userId')
+
+    return res.status(200).json({
+      data: redeemAwards,
+      message: 'Redeem awards fetched successfully'
     })
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
   }
 }

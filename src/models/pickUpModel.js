@@ -51,6 +51,10 @@ const pickUpSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  collector: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   completedAt: {
     type: Date,
     required: false

@@ -6,7 +6,8 @@ const awardController = require('../controllers/awardController')
 const {
   addAward, getAwards, updateAward,
   deleteAward,
-  userRedeemRewardWithPoints, getUserRewards
+  userRedeemRewardWithPoints, getUserRewards,
+  adminUpdateRedeemStatus, adminGetRedeemAwards
 } = awardController
 
 const { isAuth } = require('../middleware/authMiddleware')
@@ -22,5 +23,9 @@ router.get('/', isAuth, getAwards)
 router.put('/:id', isAuth, updateAward)
 
 router.get('/user', isAuth, getUserRewards)
+
+router.put('/admin/:id', isAuth, adminUpdateRedeemStatus)
+
+router.get('/admin', isAuth, adminGetRedeemAwards)
 
 module.exports = router
