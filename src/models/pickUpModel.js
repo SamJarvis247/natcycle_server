@@ -58,6 +58,10 @@ const pickUpSchema = new mongoose.Schema({
   completedAt: {
     type: Date,
     required: false
+  },
+  completedBy: {
+    type: String,
+    required: false
   }
 }, {
   timestamps: true

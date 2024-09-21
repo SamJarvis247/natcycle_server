@@ -133,12 +133,12 @@ exports.userRedeemRewardWithPoints = async (req, res) => {
       })
     }
 
-    // make sure user has not redeemed the reward
-    if (user.redeemedRewards.includes(id)) {
-      return res.status(400).json({
-        message: 'You have already redeemed this reward'
-      })
-    }
+    // // make sure user has not redeemed the reward
+    // if (user.redeemedRewards.includes(id)) {
+    //   return res.status(400).json({
+    //     message: 'You have already redeemed this reward'
+    //   })
+    // }
 
     console.log(user.pointsEarned, findReward.pointsRequired)
 
@@ -149,17 +149,20 @@ exports.userRedeemRewardWithPoints = async (req, res) => {
     }
 
     // check if user has already redeemed
-    const redeemAward = await RedeemAward.findOne({ userId })
+    const redeemedAward = await RedeemAward.findOne({
+      userId,
+      awardId: id
+    })
 
-    if (redeemAward) {
+    if (redeemedAward) {
       return res.status(400).json({
         message: 'You have already redeemed a reward'
       })
     }
 
     const newRedeemAward = new RedeemAward({
-      awardId: id,
-      userId
+      award: id,
+      user: userId
     })
 
     await newRedeemAward.save()
@@ -179,7 +182,22 @@ exports.getUserRewards = async (req, res) => {
   const userId = req.user._id
 
   try {
-    const userRewards = await RedeemAward.find({ userId }).populate('awardId')
+    const userRewards = await RedeemAward.find({ user: userId })
+
+    const awardsId = userRewards.map(reward => reward.award)
+
+    const userRewardsData = await Rewards.find({ _id: { $in: awardsId } })
+
+    userRewards.forEach((reward, index) => {
+      const award = userRewardsData.find(data => data._id.toString() === reward.award.toString())
+      userRewards[index] = {
+        ...reward._doc,
+        status: reward.status,
+        ...award._doc
+      }
+    })
+
+    console.log(userRewards)
 
     return res.status(200).json({
       data: userRewards,
@@ -191,8 +209,9 @@ exports.getUserRewards = async (req, res) => {
 }
 
 exports.adminUpdateRedeemStatus = async (req, res) => {
-  const { id } = req.params
-  const { status } = req.body
+  const { id, status } = req.params
+
+  console.log(id, status)
 
   try {
     const redeemAward = await RedeemAward.findById(id)
@@ -218,7 +237,31 @@ exports.adminUpdateRedeemStatus = async (req, res) => {
 
 exports.adminGetRedeemAwards = async (req, res) => {
   try {
-    const redeemAwards = await RedeemAward.find().populate('awardId').populate('userId')
+    const redeemAwards = await RedeemAward.find()
+    // .populate('award')
+    // .populate('user')
+
+    const awardsId = redeemAwards.map(reward => reward.award)
+    const userIds = redeemAwards.map(reward => reward.user)
+
+    const userRewardsData = await Rewards.find({ _id: { $in: awardsId } })
+    const userData = await User.find({ _id: { $in: userIds } })
+
+    redeemAwards.forEach((reward, index) => {
+      const award = userRewardsData.find(data => data._id.toString() === reward.award.toString())
+      const user = userData.find(data => data._id.toString() === reward.user.toString())
+      redeemAwards[index] = {
+        status: reward.status,
+        ...award._doc,
+        ...reward._doc,
+        // user: user._doc only first name and last name and id
+        user: {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName
+        }
+      }
+    })
 
     return res.status(200).json({
       data: redeemAwards,

@@ -2,11 +2,11 @@ const mongoose = require('mongoose')
 const mongoosePaginate = require('mongoose-paginate-v2')
 
 const redeemAwardSchema = new mongoose.Schema({
-  awardId: {
+  award: {
     type: mongoose.Schema.Types.ObjectId,
     required: true
   },
-  userId: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     required: true
   },
@@ -17,7 +17,7 @@ const redeemAwardSchema = new mongoose.Schema({
   status: {
     type: String,
     default: 'pending',
-    enum: ['pending', 'processing', 'approved', 'rejected']
+    enum: ['pending', 'processing', 'completed', 'rejected']
   }
 })
 

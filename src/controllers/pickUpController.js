@@ -217,6 +217,8 @@ exports.completePickUp = async (req, res) => {
 
     pickUp.collector = req.user._id
 
+    pickUp.completedBy = req.user.email
+
     await pickUp.save()
 
     // add points to user

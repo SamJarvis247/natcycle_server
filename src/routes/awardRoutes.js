@@ -24,8 +24,8 @@ router.put('/:id', isAuth, updateAward)
 
 router.get('/user', isAuth, getUserRewards)
 
-router.put('/admin/:id', isAuth, adminUpdateRedeemStatus)
+router.put('/admin/:id/update/:status', isAuth, adminUpdateRedeemStatus)
 
-router.get('/admin', isAuth, adminGetRedeemAwards)
+router.get('/admin/redeemed', isAuth, adminGetRedeemAwards)
 
 module.exports = router
