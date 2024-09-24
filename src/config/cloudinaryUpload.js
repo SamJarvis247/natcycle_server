@@ -45,3 +45,17 @@ exports.audio = (video) => {
     })
   })
 }
+
+// delete image from cloudinary
+exports.deleteImage = (publicId) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.destroy(publicId, (err, result) => {
+      if (err) {
+        console.log(err)
+        reject(err)
+      } else {
+        resolve(result)
+      }
+    }).then(r => console.log(r))
+  })
+}

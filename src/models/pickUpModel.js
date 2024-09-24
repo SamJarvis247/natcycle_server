@@ -13,6 +13,50 @@ const pickUpSchema = new mongoose.Schema({
     trim: true,
     default: 'Plastic Bottles'
   },
+  items: {
+    plastic: {
+      type: Number,
+      required: false,
+      default: 0
+    },
+    fabric: {
+      type: Number,
+      required: false,
+      default: 0
+    },
+    glass: {
+      type: Number,
+      required: false,
+      default: 0
+    },
+    paper: {
+      type: Number,
+      required: false,
+      default: 0
+    }
+  },
+  confirmedItems: {
+    plastic: {
+      type: Number,
+      required: false,
+      default: 0
+    },
+    fabric: {
+      type: Number,
+      required: false,
+      default: 0
+    },
+    glass: {
+      type: Number,
+      required: false,
+      default: 0
+    },
+    paper: {
+      type: Number,
+      required: false,
+      default: 0
+    }
+  },
   description: {
     type: Number,
     required: false

@@ -6,7 +6,7 @@ const User = require('../models/userModel')
 
 // add new pick up
 exports.addPickUp = async (req, res) => {
-  const { itemType, location, date, timeStart, timeEnd, description } = req.body
+  const { items, location, date, timeStart, timeEnd, description } = req.body
 
   const findLocation = await Location.findById(location)
 
@@ -14,10 +14,17 @@ exports.addPickUp = async (req, res) => {
     return res.status(404).json({ message: 'Location not found' })
   }
 
+  //expected items {
+  //   plastic: 0,
+  //   fabric: 0,
+  //   glass: 0,
+  //   paper: 0,
+  // }
+
   try {
     const pickUp = new PickUp({
       location: findLocation._id,
-      itemType,
+      items,
       user: req.user._id,
       scheduledDate: date,
       scheduledTimeStart: timeStart,
@@ -178,7 +185,7 @@ exports.completePickUp = async (req, res) => {
     { item: 'plastic', points: 10 },
     { item: 'fabric', points: 5 },
     { item: 'glass', points: 8 },
-    { item: 'mixed', points: 2 }
+    { item: 'paper', points: 15 }
   ]
 
   const pickUpId = req.params.id
@@ -200,13 +207,12 @@ exports.completePickUp = async (req, res) => {
 
     let pointsEarned = 0
 
-    const recyclable = recyclablesWithPoints.find((r) => r.item === pickUp.itemType)
+    const paper = pickUp.items.paper * 15
+    const plastic = pickUp.items.plastic * 10
+    const fabric = pickUp.items.fabric * 5
+    const glass = pickUp.items.glass * 8
 
-    console.log('recyclable', recyclable)
-
-    if (recyclable) {
-      pointsEarned = recyclable.points * itemsCount
-    }
+    pointsEarned = paper + plastic + fabric + glass
 
     pickUp.status = 'completed'
     pickUp.completedAt = new Date()
