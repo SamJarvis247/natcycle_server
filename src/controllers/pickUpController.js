@@ -6,6 +6,7 @@ const User = require('../models/userModel')
 
 // add new pick up
 exports.addPickUp = async (req, res) => {
+  console.log('____req.body____', req.body)
   const { items, location, date, timeStart, timeEnd, description } = req.body
 
   const findLocation = await Location.findById(location)
@@ -14,7 +15,9 @@ exports.addPickUp = async (req, res) => {
     return res.status(404).json({ message: 'Location not found' })
   }
 
-  //expected items {
+  console.log('____items____', items)
+
+  // expected items {
   //   plastic: 0,
   //   fabric: 0,
   //   glass: 0,
@@ -181,16 +184,16 @@ exports.adminGetPickUps = async (req, res) => {
 
 // mark pick up as completed and add pointsEarned
 exports.completePickUp = async (req, res) => {
-  const recyclablesWithPoints = [
-    { item: 'plastic', points: 10 },
-    { item: 'fabric', points: 5 },
-    { item: 'glass', points: 8 },
-    { item: 'paper', points: 15 }
-  ]
+  // const recyclablesWithPoints = [
+  //   { item: 'plastic', points: 10 },
+  //   { item: 'fabric', points: 5 },
+  //   { item: 'glass', points: 8 },
+  //   { item: 'paper', points: 15 }
+  // ]
 
   const pickUpId = req.params.id
 
-  const { itemsCount } = req.body
+  const { items } = req.body
 
   if (!mongoose.Types.ObjectId.isValid(pickUpId)) { return res.status(404).send('No pick up with that id') }
 
@@ -205,46 +208,50 @@ exports.completePickUp = async (req, res) => {
       return res.status(400).json({ message: 'Pick up already completed' })
     }
 
+    const user = await User.findById(pickUp.user)
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
     let pointsEarned = 0
 
-    const paper = pickUp.items.paper * 15
-    const plastic = pickUp.items.plastic * 10
-    const fabric = pickUp.items.fabric * 5
-    const glass = pickUp.items.glass * 8
+    if (pickUp.items.paper) {
+      pointsEarned += pickUp.items.paper * 15
+      user.itemsCount.paper += pickUp.items.paper
+    }
 
-    pointsEarned = paper + plastic + fabric + glass
+    if (pickUp.items.plastic) {
+      pointsEarned += pickUp.items.plastic * 10
+      user.itemsCount.plastic += pickUp.items.plastic
+    }
+
+    if (pickUp.items.fabric) {
+      pointsEarned += pickUp.items.fabric * 5
+      user.itemsCount.fabric += pickUp.items.fabric
+    }
+
+    if (pickUp.items.glass) {
+      pointsEarned += pickUp.items.glass * 8
+      user.itemsCount.glass += pickUp.items.glass
+    }
+
+    console.log('____pointsEarned____', pointsEarned)
 
     pickUp.status = 'completed'
     pickUp.completedAt = new Date()
-    pickUp.itemsCount = itemsCount
 
-    // add points earned
     pickUp.pointsEarned = pointsEarned
 
     pickUp.collector = req.user._id
 
     pickUp.completedBy = req.user.email
 
-    await pickUp.save()
+    pickUp.confirmedItems = items
 
-    // add points to user
-    const user = await User.findById(pickUp.user)
+    await pickUp.save()
 
     user.pointsEarned += pointsEarned
     user.carbonUnits += pointsEarned
-
-    user.totalItemsCollected += itemsCount
-
-    // add count to user items count
-    if (pickUp.itemType === 'plastic') {
-      user.itemsCount.plastic += itemsCount
-    } else if (pickUp.itemType === 'fabric') {
-      user.itemsCount.fabric += itemsCount
-    } else if (pickUp.itemType === 'glass') {
-      user.itemsCount.glass += itemsCount
-    } else if (pickUp.itemType === 'mixed') {
-      user.itemsCount.mixed += itemsCount
-    }
 
     await user.save()
 
@@ -259,6 +266,7 @@ exports.completePickUp = async (req, res) => {
       data: pickUp
     })
   } catch (error) {
+    console.log(error)
     res.status(500).json(error)
   }
 }

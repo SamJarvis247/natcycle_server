@@ -10,15 +10,10 @@ const campaignSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  startDate: {
-    type: Date,
-    required: true
-  },
   endDate: {
-    type: Date,
-    required: true
+    type: Date
   },
-  hidden: {
+  isHidden: {
     type: Boolean,
     default: false
   },
@@ -26,13 +21,10 @@ const campaignSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  metadata: {
-    type: Object,
-    ref: 'Metadata'
-  },
   status: {
     type: String,
-    default: 'active'
+    default: 'active',
+    enum: ['active', 'completed', 'cancelled']
   },
   material: {
     type: String

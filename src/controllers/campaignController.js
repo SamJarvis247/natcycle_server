@@ -2,7 +2,7 @@ const Campaign = require('../models/campaignModel')
 const cloudinaryUpload = require('../config/cloudinaryUpload')
 
 exports.createCampaign = async (req, res) => {
-  const { name, description, startDate, endDate, material, goal } = req.body
+  const { name, description, endDate, material, goal } = req.body
 
   try {
     const findCampaign = await Campaign.findOne({
@@ -16,13 +16,16 @@ exports.createCampaign = async (req, res) => {
     }
 
     const fileStr = req.body.image
-
+    if (!fileStr) {
+      return res.status(400).json({
+        message: 'image is required'
+      })
+    }
     const result = await cloudinaryUpload.image(fileStr)
 
     const newCampaign = new Campaign({
       name,
       description,
-      startDate,
       endDate,
       material,
       goal,
@@ -33,8 +36,42 @@ exports.createCampaign = async (req, res) => {
     })
 
     await newCampaign.save()
+
+    return res.status(201).json({
+      message: 'Campaign added successfully',
+      data: newCampaign
+    })
   } catch (err) {
     return res.status(400).json({
+      message: err.message
+    })
+  }
+}
+
+exports.getCampaign = async (req, res) => {
+  const { id } = req.params
+
+  if (!id) {
+    return res.status(400).json({
+      message: 'an id must be included'
+    })
+  }
+
+  try {
+    const campaign = await Campaign.findById(id)
+
+    if (!campaign) {
+      return res.status(404).json({
+        message: 'Campaign not found'
+      })
+    }
+
+    return res.status(200).json({
+      data: campaign,
+      message: 'Campaign fetched successfully'
+    })
+  } catch (err) {
+    return res.status(500).json({
       message: err.message
     })
   }

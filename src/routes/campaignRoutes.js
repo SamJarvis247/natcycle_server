@@ -3,6 +3,7 @@ const router = express.Router()
 
 const {
   getCampaigns,
+  getCampaign,
   createCampaign,
   updateCampaign,
   deleteCampaign
@@ -11,6 +12,8 @@ const {
 const { isAuth, isAdmin } = require('../middleware/authMiddleware')
 
 router.get('/', getCampaigns)
+
+router.get('/:id', getCampaign)
 
 router.post('/', isAuth, isAdmin, createCampaign)
 
