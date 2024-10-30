@@ -1,7 +1,7 @@
 // cors config file
 
 module.exports = {
-  origin: process.env.ORIGIN.split(','),
+  origin: ['https://www.natcycle.app', 'http://localhost:5173', 'https://nat-cycle.vercel.app'],
   optionSuccessStatus: 200,
   credentials: true
-};
+}
