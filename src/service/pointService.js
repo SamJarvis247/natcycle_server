@@ -3,7 +3,7 @@ const sendNotification = require('../service/notificationService')
 
 // award more than 2 refered users point
 
-exports.awardPoints = async (user) => {
+exports.awardReferralPoints = async (user) => {
   const referredUsers = await User.find({ referredBy: user._id })
 
   if (referredUsers.length > 2 && referredUsers.length < 3) {
