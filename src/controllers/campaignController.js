@@ -1,5 +1,7 @@
 const Campaign = require('../models/campaignModel')
 const cloudinaryUpload = require('../config/cloudinaryUpload')
+const PickUp = require('../models/pickUpModel')
+const User = require('../models/userModel')
 
 exports.createCampaign = async (req, res) => {
   const { name, description, endDate, material, goal } = req.body
@@ -188,6 +190,47 @@ exports.deleteCampaign = async (req, res) => {
 
     return res.status(200).json({
       message: 'successfully deleted the campaign'
+    })
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message
+    })
+  }
+}
+
+exports.getContributors = async (req, res) => {
+  const { id } = req.params
+
+  if (!id) {
+    return res.status(400).json({
+      message: 'an id must be included'
+    })
+  }
+
+  try {
+    const campaign = await Campaign.findById(id)
+
+    if (!campaign) {
+      return res.status(404).json({
+        message: 'Campaign not found'
+      })
+    }
+
+    const pickups = await PickUp.find({
+      campaign: id
+    })
+
+    const userIds = [...new Set(pickups.map(pickup => pickup.user._id.toString()))]
+
+    // Fetch users by their IDs
+    const users = await User.find({ _id: { $in: userIds } })
+
+    return res.status(200).json({
+      data: {
+        users,
+        pickupCount: pickups.length
+      },
+      message: 'Contributors fetched successfully'
     })
   } catch (err) {
     return res.status(500).json({

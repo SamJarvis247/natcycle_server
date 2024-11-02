@@ -71,3 +71,37 @@ exports.deleteBadge = async (req, res) => {
     res.status(500).json({ message: err.message })
   }
 }
+
+exports.updateBadge = async (req, res) => {
+  const { name, description } = req.body
+
+  try {
+    const badge = await Badge.findById(req.params.id)
+
+    if (!badge) {
+      return res.status(404).json({ message: 'Badge not found' })
+    }
+
+    badge.name = name
+    badge.description = description
+
+    if (req.body.image) {
+      const fileStr = req.body.image
+      const result = await cloudinaryUpload.image(fileStr)
+
+      badge.image = {
+        public_id: result.public_id,
+        url: result.secure_url
+      }
+    }
+
+    await badge.save()
+
+    res.status(200).json({
+      message: 'Badge updated successfully',
+      data: badge
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}

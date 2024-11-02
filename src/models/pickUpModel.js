@@ -106,6 +106,10 @@ const pickUpSchema = new mongoose.Schema({
   completedBy: {
     type: String,
     required: false
+  },
+  campaign: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Campaign'
   }
 }, {
   timestamps: true

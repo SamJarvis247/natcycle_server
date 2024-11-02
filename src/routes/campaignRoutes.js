@@ -6,7 +6,7 @@ const {
   getCampaign,
   createCampaign,
   updateCampaign,
-  deleteCampaign
+  deleteCampaign, getContributors
 } = require('../controllers/campaignController')
 
 const { isAuth, isAdmin } = require('../middleware/authMiddleware')
@@ -20,5 +20,7 @@ router.post('/', isAuth, isAdmin, createCampaign)
 router.put('/:id', isAuth, isAdmin, updateCampaign)
 
 router.delete('/:id', isAuth, isAdmin, deleteCampaign)
+
+router.get('/:id/contributors', getContributors)
 
 module.exports = router

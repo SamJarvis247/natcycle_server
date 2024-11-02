@@ -3,11 +3,12 @@ const Location = require('../models/locationModel')
 const mongoose = require('mongoose')
 const sendNotification = require('../service/notificationService')
 const User = require('../models/userModel')
+const Campaign = require('../models/campaignModel')
 
 // add new pick up
 exports.addPickUp = async (req, res) => {
   console.log('____req.body____', req.body)
-  const { items, location, date, timeStart, timeEnd, description } = req.body
+  const { items, location, date, timeStart, timeEnd, description, campaignId } = req.body
 
   const findLocation = await Location.findById(location)
 
@@ -17,14 +18,18 @@ exports.addPickUp = async (req, res) => {
 
   console.log('____items____', items)
 
-  // expected items {
-  //   plastic: 0,
-  //   fabric: 0,
-  //   glass: 0,
-  //   paper: 0,
-  // }
-
   try {
+    let campaign
+    if (campaignId) {
+      campaign = await Campaign.findById(campaignId)
+
+      if (!campaign) {
+        return res.status(404).json({
+          message: 'Campaign not found'
+        })
+      }
+    }
+
     const pickUp = new PickUp({
       location: findLocation._id,
       items,
@@ -32,7 +37,8 @@ exports.addPickUp = async (req, res) => {
       scheduledDate: date,
       scheduledTimeStart: timeStart,
       scheduledTimeEnd: timeEnd,
-      description
+      description,
+      campaign: campaignId ? campaign._id : null
     })
 
     await pickUp.save()
@@ -254,6 +260,17 @@ exports.completePickUp = async (req, res) => {
     user.carbonUnits += pointsEarned
 
     await user.save()
+
+    // check for campaign and add to campaign goal
+
+    if (pickUp.campaign) {
+      const campaign = await Campaign.findById(pickUp.campaign)
+
+      if (campaign) {
+        campaign.progress += pointsEarned
+        await campaign.save()
+      }
+    }
 
     await sendNotification(
       'Pick up completed',
