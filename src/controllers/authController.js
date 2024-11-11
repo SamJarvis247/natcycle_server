@@ -59,8 +59,11 @@ exports.register = async (req, res) => {
 
     await sendEmailConfirmationOtp(user.email, User.firstName, user.otp)
 
+    const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET)
+
     return res.status(200).json({
-      message: 'User registered successfully'
+      message: 'User registered successfully',
+      token
     })
   } catch (err) {
     console.log(err)

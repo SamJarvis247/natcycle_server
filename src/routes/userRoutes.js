@@ -3,7 +3,7 @@ const router = express.Router()
 const userControllers = require('../controllers/userControllers')
 
 const {
-  updateProfile, updateProfilePicture, getMe,
+  updateProfile, updateProfilePicture, getMe, getUserBadges,
   getAllUsers,
   getUserById, disableUser, enableUser, getReferrals
 } = userControllers
@@ -15,6 +15,8 @@ router.put('/', isAuth, updateProfile)
 router.put('/image', isAuth, updateProfilePicture)
 
 router.get('/', isAuth, getMe)
+
+router.get('/badges', isAuth, getUserBadges)
 
 // admin routes
 router.get('/all', isAuth, getAllUsers)

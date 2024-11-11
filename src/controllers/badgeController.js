@@ -1,4 +1,5 @@
 const Badge = require('../models/badgeModel')
+const User = require('../models/userModel')
 const cloudinaryUpload = require('../config/cloudinaryUpload')
 
 // add new badge
@@ -56,7 +57,7 @@ exports.getBadges = async (req, res) => {
 // delete badge
 exports.deleteBadge = async (req, res) => {
   try {
-    const badge = await Badge.findById(req.params.id)
+    const badge = await Badge.findById(badgeId)
 
     if (!badge) {
       return res.status(404).json({ message: 'Badge not found' })
@@ -76,7 +77,7 @@ exports.updateBadge = async (req, res) => {
   const { name, description } = req.body
 
   try {
-    const badge = await Badge.findById(req.params.id)
+    const badge = await Badge.findById(badgeId)
 
     if (!badge) {
       return res.status(404).json({ message: 'Badge not found' })
@@ -100,6 +101,78 @@ exports.updateBadge = async (req, res) => {
     res.status(200).json({
       message: 'Badge updated successfully',
       data: badge
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+// add badge to user first check if user already has badge
+exports.addBadgeToUser = async (req, res) => {
+  const { badgeId, userId } = req.params
+
+  try {
+    const user = await User.findById(userId)
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const badge = await Badge.findById(badgeId)
+
+    if (!badge) {
+      return res.status(404).json({ message: 'Badge not found' })
+    }
+
+    // check if user already has badge
+    const hasBadge = user.badges.includes(badgeId)
+
+    if (hasBadge) {
+      return res.status(400).json({ message: 'User already has badge' })
+    }
+
+    user.badges.push(badgeId)
+
+    await user.save()
+
+    res.status(200).json({
+      message: 'Badge added to user successfully'
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+}
+
+// remove badge from user
+exports.removeBadgeFromUser = async (req, res) => {
+  const { badgeId, userId } = req.params
+
+  try {
+    const user = await User.findById(userId)
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const badge = await Badge.findById(badgeId)
+
+    if (!badge) {
+      return res.status(404).json({ message: 'Badge not found' })
+    }
+
+    // check if user already has badge
+    const hasBadge = user.badges.includes(badgeId)
+
+    if (!hasBadge) {
+      return res.status(400).json({ message: 'User does not have badge' })
+    }
+
+    user.badges = user.badges.filter(badge => badge !== badgeId)
+
+    await user.save()
+
+    res.status(200).json({
+      message: 'Badge removed from user successfully'
     })
   } catch (err) {
     res.status(500).json({ message: err.message })

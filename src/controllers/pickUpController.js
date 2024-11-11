@@ -267,7 +267,25 @@ exports.completePickUp = async (req, res) => {
       const campaign = await Campaign.findById(pickUp.campaign)
 
       if (campaign) {
-        campaign.progress += pointsEarned
+        // campaign.progress += pointsEarned
+        // add the item count to the campaign
+
+        if (pickUp.items.paper) {
+          campaign.progress += pickUp.items.paper
+        }
+
+        if (pickUp.items.plastic) {
+          campaign.progress += pickUp.items.plastic
+        }
+
+        if (pickUp.items.fabric) {
+          campaign.progress += pickUp.items.fabric
+        }
+
+        if (pickUp.items.glass) {
+          campaign.progress += pickUp.items.glass
+        }
+
         await campaign.save()
       }
     }

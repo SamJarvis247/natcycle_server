@@ -1,4 +1,5 @@
 const User = require('../models/userModel')
+const Badge = require('../models/badgeModel')
 const cloudinaryUpload = require('../config/cloudinaryUpload')
 const mongoose = require('mongoose')
 const { successResponse, errorResponse } = require('../utility/response')
@@ -72,6 +73,24 @@ exports.getMe = async (req, res) => {
     return res.status(200).json({
       message: 'User Profile Fetched Successfully',
       data: userDetails
+    })
+  } catch (err) {
+    console.log('Error: ', err)
+    res.status(400).json(err)
+  }
+}
+
+// get user badges
+exports.getUserBadges = async (req, res) => {
+  const userId = req.user._id
+
+  try {
+    const user = await
+    User.findById(userId).populate('badges')
+
+    return res.status(200).json({
+      message: 'User Badges Fetched Successfully',
+      data: user.badges
     })
   } catch (err) {
     console.log('Error: ', err)
