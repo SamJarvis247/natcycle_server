@@ -63,6 +63,7 @@ exports.getPickUpById = async (req, res) => {
       .populate('user')
       .populate('location')
       .populate('collector')
+      .populate('campaign')
 
     if (!pickUp) {
       return res.status(404).json({ message: 'Pick up not found' })

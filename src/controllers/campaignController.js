@@ -68,8 +68,16 @@ exports.getCampaign = async (req, res) => {
       })
     }
 
+    // get the number of pickups for this campaign using countDocuments
+    const pickups = await PickUp.countDocuments({
+      campaign: id
+    })
+
     return res.status(200).json({
-      data: campaign,
+      data: {
+        campaign,
+        pickupCount: pickups || 0
+      },
       message: 'Campaign fetched successfully'
     })
   } catch (err) {
@@ -224,10 +232,20 @@ exports.getContributors = async (req, res) => {
 
     // Fetch users by their IDs
     const users = await User.find({ _id: { $in: userIds } })
+      .select('firstName lastName email profilePicture')
+
+    // Calculate the number of contributions for each user
+    const userContributions = users.map(user => {
+      const contributions = pickups.filter(pickup => pickup.user._id.toString() === user._id.toString()).length
+      return {
+        ...user.toObject(),
+        contributions
+      }
+    })
 
     return res.status(200).json({
       data: {
-        users,
+        users: userContributions,
         pickupCount: pickups.length
       },
       message: 'Contributors fetched successfully'
