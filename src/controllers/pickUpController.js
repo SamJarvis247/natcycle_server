@@ -7,7 +7,6 @@ const Campaign = require('../models/campaignModel')
 
 // add new pick up
 exports.addPickUp = async (req, res) => {
-  console.log('____req.body____', req.body)
   const { items, location, date, timeStart, timeEnd, description, campaignId } = req.body
 
   const findLocation = await Location.findById(location)

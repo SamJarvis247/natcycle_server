@@ -10,7 +10,7 @@ cloudinary.config({
 const options = {
   overwrite: true,
   invalidate: true,
-  folder: 'octa_empire'
+  folder: 'natcycle'
 }
 
 exports.image = (image) => {
