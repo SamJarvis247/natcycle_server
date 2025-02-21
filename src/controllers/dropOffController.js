@@ -75,7 +75,7 @@ exports.getDropOffs = async (req, res) => {
     const dropOffs = await DropOff.paginate(query, {
       page,
       limit,
-      sort: { createdAt: -1 },
+      sort: { createdAt: -1 }
     })
 
     res.status(200).json({

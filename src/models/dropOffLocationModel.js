@@ -8,6 +8,11 @@ const dropOffLocationSchema = new mongoose.Schema({
     trim: true,
     unique: true
   },
+  itemType: {
+    type: String,
+    required: true,
+    default: 'plastic'
+  },
   description: {
     type: String,
     required: true,

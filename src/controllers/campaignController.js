@@ -2,9 +2,10 @@ const Campaign = require('../models/campaignModel')
 const cloudinaryUpload = require('../config/cloudinaryUpload')
 const PickUp = require('../models/pickUpModel')
 const User = require('../models/userModel')
+const DropOffLocation = require('../models/dropOffLocationModel')
 
 exports.createCampaign = async (req, res) => {
-  const { name, description, endDate, material, goal } = req.body
+  const { name, description, endDate, goal, dropOffLocationId } = req.body
 
   try {
     const findCampaign = await Campaign.findOne({
@@ -14,6 +15,16 @@ exports.createCampaign = async (req, res) => {
     if (findCampaign) {
       return res.status(400).json({
         message: 'Campaign with name already exists'
+      })
+    }
+
+    const findDropOffLocation = await DropOffLocation.findOne({
+      _id: dropOffLocationId
+    })
+
+    if (!findDropOffLocation) {
+      return res.status(400).json({
+        message: 'Drop off location not found'
       })
     }
 
@@ -29,12 +40,13 @@ exports.createCampaign = async (req, res) => {
       name,
       description,
       endDate,
-      material,
+      itemType: findDropOffLocation.itemType,
       goal,
       image: {
         public_id: result.public_id,
         url: result.secure_url
-      }
+      },
+      dropOffLocation: findDropOffLocation._id
     })
 
     await newCampaign.save()

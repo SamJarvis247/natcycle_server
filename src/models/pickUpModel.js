@@ -11,75 +11,17 @@ const pickUpSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    default: 'Plastic Bottles'
-  },
-  items: {
-    plastic: {
-      type: Number,
-      required: false,
-      default: 0
-    },
-    fabric: {
-      type: Number,
-      required: false,
-      default: 0
-    },
-    glass: {
-      type: Number,
-      required: false,
-      default: 0
-    },
-    paper: {
-      type: Number,
-      required: false,
-      default: 0
-    }
-  },
-  confirmedItems: {
-    plastic: {
-      type: Number,
-      required: false,
-      default: 0
-    },
-    fabric: {
-      type: Number,
-      required: false,
-      default: 0
-    },
-    glass: {
-      type: Number,
-      required: false,
-      default: 0
-    },
-    paper: {
-      type: Number,
-      required: false,
-      default: 0
-    }
+    default: 'plastic'
   },
   description: {
-    type: Number,
+    type: String,
     required: false
   },
   scheduledDate: {
     type: Date,
     required: true
   },
-  scheduledTime: {
-    type: String
-  },
-  scheduledTimeStart: {
-    type: String
-  },
-  scheduledTimeEnd: {
-    type: String
-  },
   pointsEarned: {
-    type: Number,
-    required: false,
-    default: 0
-  },
-  itemsCount: {
     type: Number,
     required: false,
     default: 0

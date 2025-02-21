@@ -26,7 +26,7 @@ const campaignSchema = new mongoose.Schema({
     default: 'active',
     enum: ['active', 'completed', 'cancelled']
   },
-  material: {
+  itemType: {
     type: String
   },
   goal: {
@@ -45,7 +45,13 @@ const campaignSchema = new mongoose.Schema({
       type: String,
       required: false
     }
+  },
+  dropOffLocation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'DropOffLocation'
   }
+}, {
+  timestamps: true
 })
 
 campaignSchema.plugin(mongoosePaginate)

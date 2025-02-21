@@ -2,10 +2,9 @@ const DropOffLocation = require('../models/dropOffLocationModel')
 
 // add new drop off location
 exports.addDropOffLocation = async (req, res) => {
-  const { name, description, address, latitude, longitude, googleMapsUri, googleMapId } = req.body
+  const { name, itemType, description, address, latitude, longitude, googleMapsUri, googleMapId } = req.body
 
   try {
-    // cheeck if drop off location already exists
     const existingDropOffLocation = await DropOffLocation.findOne({ name })
 
     if (existingDropOffLocation) {
@@ -14,6 +13,7 @@ exports.addDropOffLocation = async (req, res) => {
 
     const dropOffLocation = new DropOffLocation({
       name,
+      itemType,
       description,
       address,
       location: {
@@ -83,13 +83,28 @@ exports.getDropOffLocationById = async (req, res) => {
 
 // get nearest drop off locations
 exports.getNearestDropOffLocations = async (req, res) => {
-  const { latitude, longitude, distance = 10000 } = req.query
+  const { latitude, longitude, distance = 10000, itemType } = req.query
 
   if (!latitude || !longitude) {
     return res.status(400).json({ message: 'Latitude and longitude are required' })
   }
 
+  const query = {}
+
+  if (itemType) {
+    query.itemType = itemType
+  }
+
   try {
+    if (parseInt(distance) === 0) {
+      const dropOffLocations = await DropOffLocation.find(query)
+
+      return res.status(200).json({
+        data: dropOffLocations,
+        message: 'All drop off locations fetched successfully'
+      })
+    }
+
     const dropOffLocations = await DropOffLocation.find({
       location: {
         $near: {
@@ -133,7 +148,7 @@ exports.deleteDropOffLocation = async (req, res) => {
 // update drop off location
 exports.updateDropOffLocation = async (req, res) => {
   const { id } = req.params
-  const { name, description, address, latitude, longitude, googleMapsUri, googleMapId } = req.body
+  const { name, itemType, description, address, latitude, longitude, googleMapsUri, googleMapId } = req.body
 
   try {
     const dropOffLocation = await DropOffLocation.findById(id)
@@ -142,9 +157,10 @@ exports.updateDropOffLocation = async (req, res) => {
       return res.status(404).json({ message: 'Drop off location not found' })
     }
 
-    dropOffLocation.name = name
-    dropOffLocation.description = description
-    dropOffLocation.address = address
+    dropOffLocation.itemType = itemType || dropOffLocation.itemType
+    dropOffLocation.name = name || dropOffLocation.name
+    dropOffLocation.description = description || dropOffLocation.description
+    dropOffLocation.address = address || dropOffLocation.address
     dropOffLocation.location = {
       type: 'Point',
       coordinates: [longitude, latitude]

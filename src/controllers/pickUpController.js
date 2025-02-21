@@ -7,15 +7,13 @@ const Campaign = require('../models/campaignModel')
 
 // add new pick up
 exports.addPickUp = async (req, res) => {
-  const { items, location, date, timeStart, timeEnd, description, campaignId } = req.body
+  const { location, itemType, date, description, campaignId } = req.body
 
   const findLocation = await Location.findById(location)
 
   if (!findLocation) {
     return res.status(404).json({ message: 'Location not found' })
   }
-
-  console.log('____items____', items)
 
   try {
     let campaign
@@ -31,11 +29,9 @@ exports.addPickUp = async (req, res) => {
 
     const pickUp = new PickUp({
       location: findLocation._id,
-      items,
+      itemType,
       user: req.user._id,
       scheduledDate: date,
-      scheduledTimeStart: timeStart,
-      scheduledTimeEnd: timeEnd,
       description,
       campaign: campaignId ? campaign._id : null
     })
@@ -190,13 +186,6 @@ exports.adminGetPickUps = async (req, res) => {
 
 // mark pick up as completed and add pointsEarned
 exports.completePickUp = async (req, res) => {
-  // const recyclablesWithPoints = [
-  //   { item: 'plastic', points: 10 },
-  //   { item: 'fabric', points: 5 },
-  //   { item: 'glass', points: 8 },
-  //   { item: 'paper', points: 15 }
-  // ]
-
   const pickUpId = req.params.id
 
   const { items } = req.body
