@@ -37,10 +37,14 @@ exports.addDropOffLocation = async (req, res) => {
 
 // get all drop off locations
 exports.getDropOffLocations = async (req, res) => {
-  const { page = 1, limit = 10, id } = req.query
+  const { page = 1, limit = 10, id, itemType } = req.query
 
   try {
     const query = {}
+
+    if (itemType) {
+      query.itemType = itemType
+    }
 
     if (id) {
       query._id = id
