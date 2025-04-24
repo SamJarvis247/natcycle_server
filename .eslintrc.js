@@ -1,16 +1,23 @@
 module.exports = {
   env: {
     browser: true,
-    commonjs: true,
-    es2021: true
+    es2022: true,
+    node: true,
   },
-  extends: 'standard',
-  overrides: [],
+  extends: [
+    'eslint:recommended', 
+    'plugin:prettier/recommended', 
+  ],
   parserOptions: {
-    ecmaVersion: 'latest'
+    ecmaVersion: 'latest',
+    sourceType: 'module',
   },
+  plugins: ['prettier'],
   rules: {
-    'no-unused-vars': 'warn',
-    'no-undef': 'warn'
-  }
-}
+    'prettier/prettier': 'error', 
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    'no-undef': 'error', 
+    quotes: ['error', 'double', { avoidEscape: true }], 
+    semi: ['error', 'always'], 
+  },
+};

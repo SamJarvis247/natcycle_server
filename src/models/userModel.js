@@ -1,4 +1,4 @@
-// const  mongoose from 'mongoose';
+// Import mongoose using CommonJS syntax
 const mongoose = require('mongoose')
 
 // glass, plastic, paper, metal, organic, e-waste, hazardous
@@ -44,6 +44,7 @@ const ItemsCountSchema = mongoose.Schema(
     timestamps: true
   }
 )
+
 
 const UserSchema = mongoose.Schema(
   {
@@ -91,6 +92,11 @@ const UserSchema = mongoose.Schema(
       type: Boolean,
       required: false,
       default: false
+    },
+    thingsMatchAccount: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ThingsMatchUser',
+      required: false,
     },
     isAdmin: {
       type: Boolean,
@@ -168,6 +174,8 @@ const UserSchema = mongoose.Schema(
   }
 )
 
+
+
 UserSchema.methods.toJSON = function () {
   const user = this
   const userObject = user.toObject()
@@ -177,4 +185,9 @@ UserSchema.methods.toJSON = function () {
   return userObject
 }
 
-module.exports = mongoose.models.User || mongoose.model('User', UserSchema)
+
+
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+
+module.exports = User 

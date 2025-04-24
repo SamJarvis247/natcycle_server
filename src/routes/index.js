@@ -12,6 +12,10 @@ const campaignRoutes = require('./campaignRoutes')
 const dropOffLocationRoutes = require('./dropOffLocationRoutes')
 const dropOffRoutes = require('./dropOffRoutes')
 
+//THINGS MATCH IMPORTS
+const thingsMatchAuthRoutes = require('./thingsMatch/auth.route')
+
+
 router.use('/auth', authRoutes)
 router.use('/profile', userRoutes)
 router.use('/pickup', pickUpRoutes)
@@ -23,5 +27,14 @@ router.use('/campaigns', campaignRoutes)
 router.use('/dropOff-location', dropOffLocationRoutes)
 router.use('/dropOff', dropOffRoutes)
 
+//thingsmatch routes
+const thingsMatchPrefix = '/thingsMatch'
+// router.use(thingsMatchPrefix, (req, res, next) => {
+//   console.log(`Welcome to ThingsMatch API`)
+
+//   res.send('Welcome to ThingsMatch API')
+//   next()
+// })
+router.use(`${thingsMatchPrefix}/auth`, thingsMatchAuthRoutes)
 
 module.exports = router

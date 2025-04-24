@@ -8,6 +8,7 @@ const helmet = require('helmet')
 const cors = require('cors')
 const morgan = require('morgan')
 const { errorHandler } = require('./middleware/errorHandler')
+const logRoute = require('./middleware/logRoute')
 
 // import cors config
 const corsConfig = require('./config/corsConfig')
@@ -28,6 +29,7 @@ const myLogger = function (req, res, next) {
   console.log('time', new Date().toLocaleTimeString())
   next()
 }
+app.use(logRoute)
 app.use(myLogger)
 
 app.use(express.json({ limit: 5000000 }))

@@ -1,3 +1,6 @@
+/* eslint-disable space-before-function-paren */
+/* eslint-disable semi */
+/* eslint-disable quotes */
 // function generateOTP() {
 //   return Math.floor(100000 + Math.random() * 900000);
 // }
@@ -7,7 +10,7 @@ const { transporter } = require("../config/nodemailerConfig");
 function generateOTP() {
   // Declare a digits variable
   // which stores all digits
-  var digits = "0123456789";
+  const digits = "0123456789";
   let OTP = "";
   for (let i = 0; i < 6; i++) {
     OTP += digits[Math.floor(Math.random() * 10)];
@@ -22,7 +25,7 @@ async function sendOTP(email, otp) {
       from: "jarvisdev@gmail.com",
       to: email,
       subject: "OTP for password reset",
-      html: `<p>Your OTP for password reset is <b>${otp}</b></p>`,
+      html: `<p>Your OTP for password reset is <b>${otp}</b></p>`
     };
 
     transporter.sendMail(data, (err, info) => {

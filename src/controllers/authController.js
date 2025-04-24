@@ -8,6 +8,7 @@ const awardReferralPoints = require('../service/pointService')
 // Register
 exports.register = async (req, res) => {
   try {
+    console.log(req.body)
     const emailExists = await User.findOne({ email: req.body.email })
     if (emailExists) return res.status(400).send('Email already exists')
 

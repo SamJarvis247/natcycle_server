@@ -3,11 +3,10 @@ const userModel = require('../models/userModel')
 
 // verify token
 exports.isAuth = async (req, res, next) => {
-  const token = req.headers.authorization.split(' ')[1]
-
-  if (!token) return res.status(401).send('Access Denied')
-
   try {
+    const token = req.headers.authorization.split(' ')[1]
+
+    if (!token) return res.status(401).send('Access Denied')
     const verified = jwt.verify(token, process.env.TOKEN_SECRET)
     req.user = await userModel.findById(verified._id)
 
