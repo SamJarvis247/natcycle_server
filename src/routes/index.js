@@ -14,6 +14,7 @@ const dropOffRoutes = require('./dropOffRoutes')
 
 //THINGS MATCH IMPORTS
 const thingsMatchAuthRoutes = require('./thingsMatch/auth.route')
+const thingsMatchItemRoutes = require('./thingsMatch/item.route')
 
 
 router.use('/auth', authRoutes)
@@ -36,5 +37,6 @@ const thingsMatchPrefix = '/thingsMatch'
 //   next()
 // })
 router.use(`${thingsMatchPrefix}/auth`, thingsMatchAuthRoutes)
+router.use(`${thingsMatchPrefix}/items`, thingsMatchItemRoutes)
 
 module.exports = router

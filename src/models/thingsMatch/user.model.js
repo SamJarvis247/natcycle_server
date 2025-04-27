@@ -1,39 +1,81 @@
-const mongoose = require('mongoose');
-
+const mongoose = require("mongoose");
 
 const thingsMatchUserAccount = mongoose.Schema({
   natcycleId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: "User",
     unique: true,
     sparse: false,
-    required: false
+    required: false,
   },
   location: {
-    type: String,
-    required: false
+    type: {
+      lat: {
+        type: Number,
+        required: false,
+      },
+      lng: {
+        type: Number,
+        required: false,
+      },
+      address: {
+        type: String,
+        required: false,
+      },
+    },
+    required: false,
+    default: {
+      lat: 0,
+      lng: 0,
+      address: "",
+    },
+  },
+  createdItems: {
+    type: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Item",
+      },
+    ],
+    required: false,
   },
   tags: {
     type: [String],
-    required: false
+    required: false,
   },
   interests: {
     type: [String],
-    required: false
+    required: false,
+    enum: [
+      "Books",
+      "Clothing",
+      "Electronics",
+      "Food",
+      "Furniture",
+      "Hobbies",
+      "Home Goods",
+      "Jewelry",
+      "Other",
+      "Sports",
+      "Toys",
+      "Travel",
+      "Vehicles",
+    ],
+    default: [],
   },
   monthlyGoal: {
     type: Number,
-    required: false
+    required: false,
   },
   itemsShared: {
     type: Number,
-    required: false
+    required: false,
   },
   environmentalImpact: {
     type: Number,
-    required: false
+    required: false,
   },
-})
+});
 
 // Function to drop all indexes for ThingsMatchUser
 // const dropAllIndexes = async () => {
@@ -50,8 +92,8 @@ const thingsMatchUserAccount = mongoose.Schema({
 // }
 // mongoose.connection.once('open', dropAllIndexes);
 
-
-
-const ThingsMatchUser = mongoose.models.ThingsMatchUser || mongoose.model('ThingsMatchUser', thingsMatchUserAccount);
+const ThingsMatchUser =
+  mongoose.models.ThingsMatchUser ||
+  mongoose.model("ThingsMatchUser", thingsMatchUserAccount);
 
 module.exports = ThingsMatchUser;

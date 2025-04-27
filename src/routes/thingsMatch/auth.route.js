@@ -5,7 +5,15 @@ const { isAuth } = require("../../middleware/authMiddleware.js");
 const router = Router();
 
 //signup/signin Thingsmatch
-router.get("/thingsMatchAccount/:token", thingsMatchAuthController.thingsMatchAccount)
+router.get(
+  "/thingsMatchAccount/:token",
+  thingsMatchAuthController.thingsMatchAccount
+);
 
+// Update ThingsMatch account
+router.put(
+  "/updateAccount/:token",
+  thingsMatchAuthController.updateThingsMatchAccount
+);
 
 module.exports = router;
