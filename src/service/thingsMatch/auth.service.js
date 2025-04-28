@@ -41,6 +41,7 @@ async function thingsMatchAccount(token) {
   let thingsMatchAccount = natCycleUser.thingsMatchAccount;
   let message = "ThingsMatch account fetched successfully";
   let newToken;
+  let isRegistered
 
   if (!thingsMatchAccount) {
     console.log(
@@ -70,13 +71,17 @@ async function thingsMatchAccount(token) {
 
     console.log(`Created new ThingsMatch account: ${thingsMatchAccount}`);
     message = "ThingsMatch account created successfully";
+    isRegistered = false;
   }
 
   newToken = generateToken(thingsMatchAccount);
+  isRegistered = true;
+
 
   return {
     message,
     token: newToken,
+    isRegistered
   };
 }
 async function updateThingsMatchAccount(token, updateData) {
