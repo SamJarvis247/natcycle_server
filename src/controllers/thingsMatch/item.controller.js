@@ -5,10 +5,16 @@ const { errorResponse, successResponse } = require("../../utility/response.js");
 const itemService = require("../../service/thingsMatch/item.service.js");
 
 // Add a new item
+// Add a new item
 const addItem = catchAsync(async (req, res) => {
   try {
     const thingsMatchUserId = req.TMID;
-    const result = await itemService.addItem(req.body, thingsMatchUserId);
+    // Pass both the request body and files to the service
+    const result = await itemService.addItem(
+      req.body,
+      thingsMatchUserId,
+      req.files
+    );
 
     return successResponse(res, result);
   } catch (error) {
@@ -23,7 +29,23 @@ const addItem = catchAsync(async (req, res) => {
 const getItemsToSwipe = catchAsync(async (req, res) => {
   try {
     const thingsMatchUserId = req.TMID;
-    const result = await itemService.getItemsToSwipe(thingsMatchUserId);
+    const { longitude, latitude, distance, notInInterest } = req.query;
+    console.log(req.query);
+
+    // Convert query parameters
+    const parsedNotInInterest = notInInterest === "true";
+    const coordinates =
+      longitude && latitude
+        ? [parseFloat(longitude), parseFloat(latitude)]
+        : null;
+    const maxDistance = distance ? parseInt(distance) : 10000;
+
+    const result = await itemService.getItemsToSwipe(
+      thingsMatchUserId,
+      parsedNotInInterest,
+      coordinates,
+      maxDistance
+    );
 
     return successResponse(res, result);
   } catch (error) {
@@ -111,6 +133,33 @@ const getCreatedItems = catchAsync(async (req, res) => {
   }
 });
 
+// Update an existing item
+const updateItem = catchAsync(async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const thingsMatchUserId = req.TMID;
+
+    if (!itemId) {
+      return errorResponse(res, "Item ID is required");
+    }
+
+    const result = await itemService.updateItem(
+      itemId,
+      req.body,
+      thingsMatchUserId,
+      req.files
+    );
+
+    return successResponse(res, result);
+  } catch (error) {
+    console.log("Error in updateItem controller:", error);
+    if (error instanceof Error) {
+      return errorResponse(res, error.message);
+    }
+  }
+});
+
+// Update the module exports
 module.exports = {
   addItem,
   getItemsToSwipe,
@@ -118,4 +167,5 @@ module.exports = {
   swipeLike,
   swipeDislike,
   getCreatedItems,
+  updateItem,
 };

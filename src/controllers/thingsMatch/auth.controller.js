@@ -44,7 +44,28 @@ const updateThingsMatchAccount = catchAsync(async (req, res) => {
   }
 });
 
+// Get ThingsMatch user profile
+const getThingsMatchUser = catchAsync(async (req, res) => {
+  try {
+    // Use the authenticated user's ID from middleware
+    const thingsMatchUserId = req.TMID;
+
+    const user = await thingsMatchAuthService.getUser(thingsMatchUserId);
+
+    return successResponse(res, {
+      message: "User profile retrieved successfully",
+      user: user,
+    });
+  } catch (error) {
+    console.log("Error in getThingsMatchUser controller:", error);
+    if (error instanceof Error) {
+      return errorResponse(res, error.message);
+    }
+  }
+});
+
 module.exports = {
   thingsMatchAccount,
   updateThingsMatchAccount,
+  getThingsMatchUser,
 };

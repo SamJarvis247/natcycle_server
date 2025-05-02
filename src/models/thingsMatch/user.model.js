@@ -10,24 +10,20 @@ const thingsMatchUserAccount = mongoose.Schema({
   },
   location: {
     type: {
-      lat: {
-        type: Number,
-        required: false,
-      },
-      lng: {
-        type: Number,
-        required: false,
-      },
-      address: {
-        type: String,
-        required: false,
-      },
+      type: String,
+      enum: ["Point"],
+      required: false,
+      default: "Point",
     },
-    required: false,
-    default: {
-      lat: 0,
-      lng: 0,
-      address: "",
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      required: false,
+      default: [0, 0],
+    },
+    address: {
+      type: String,
+      required: false,
+      default: "",
     },
   },
   createdItems: {
@@ -76,6 +72,9 @@ const thingsMatchUserAccount = mongoose.Schema({
     required: false,
   },
 });
+
+// Add geospatial index for location field
+thingsMatchUserAccount.index({ location: "2dsphere" });
 
 // Function to drop all indexes for ThingsMatchUser
 // const dropAllIndexes = async () => {

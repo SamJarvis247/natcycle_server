@@ -1,11 +1,17 @@
 const { Router } = require("express");
 const thingsMatchItemController = require("../../controllers/thingsMatch/item.controller.js");
 const { isThingsMatchUser } = require("../../middleware/authMiddleware.js");
+const upload = require("../../config/multerConfig");
 
 const router = Router();
 
 // Item routes
-router.post("/add", isThingsMatchUser, thingsMatchItemController.addItem);
+router.post(
+  "/add",
+  isThingsMatchUser,
+  upload.array("itemImages", 5),
+  thingsMatchItemController.addItem
+);
 
 router.get(
   "/swipe",
@@ -30,7 +36,15 @@ router.get(
   thingsMatchItemController.swipeDislike
 );
 
-// This generic route should be last
+//update item
+router.put(
+  "/:itemId",
+  isThingsMatchUser,
+  upload.array("itemImages", 5),
+  thingsMatchItemController.updateItem
+);
+
+//get item by id
 router.get(
   "/:itemId",
   isThingsMatchUser,

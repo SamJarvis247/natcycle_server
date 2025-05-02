@@ -2,13 +2,15 @@ const Item = require("../../models/thingsMatch/items.model.js");
 const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
 const Swipe = require("../../models/thingsMatch/swipe.model.js");
 const RedisService = require("../../service/redis.service.js");
+const getCoordinates = require("../../utility/geocode.js");
+const cloudinaryUpload = require("../../config/cloudinaryUpload");
 const CACHE_KEYS = require("./cacheKeys.js");
 const mongoose = require("mongoose");
 
-async function addItem(data, thingsMatchUserId) {
+async function addItem(data, thingsMatchUserId, files) {
   try {
-    const { name, description, category, location } = data;
-    if (!name || !description || !category || !location) {
+    const { name, description, category, address } = data;
+    if (!name || !description || !category || !address) {
       throw new Error("All fields are required");
     }
     const user = await ThingsMatchUser.findById(thingsMatchUserId);
@@ -16,19 +18,59 @@ async function addItem(data, thingsMatchUserId) {
       throw new Error("User not found");
     }
 
+    let location;
+    try {
+      const geoData = await getCoordinates(address);
+
+      location = {
+        type: "Point",
+        coordinates: [geoData.lng, geoData.lat], // [longitude, latitude]
+        address: address,
+      };
+
+      console.log(
+        `Geocoded address to coordinates: [${geoData.lng}, ${geoData.lat}]`
+      );
+    } catch (geoError) {
+      console.error("Geocoding error:", geoError);
+      throw new Error(`Failed to geocode address: ${geoError.message}`);
+    }
+
+    // Create the item object
     const item = new Item({
       userId: thingsMatchUserId,
       name,
       description,
       category,
       location,
+      itemImages: [],
     });
+
+    // Process uploaded images if any
+    if (files && files.length > 0) {
+      const imagePromises = files.map(async (file) => {
+        try {
+          const result = await cloudinaryUpload.image(file.path);
+          return {
+            public_id: result.public_id,
+            url: result.secure_url,
+          };
+        } catch (error) {
+          console.error("Error uploading image to Cloudinary:", error);
+          return null;
+        }
+      });
+
+      const uploadedImages = await Promise.all(imagePromises);
+      // Filter out any failed uploads
+      item.itemImages = uploadedImages.filter((img) => img !== null);
+    }
+
     await item.save();
 
     // Cache the individual item
     await RedisService.set(CACHE_KEYS.ITEM_DETAIL(item._id), item);
 
-    // Invalidate all user item caches using pattern matching
     try {
       await RedisService.set(CACHE_KEYS.ITEMS_LAST_UPDATED, Date.now());
 
@@ -42,13 +84,13 @@ async function addItem(data, thingsMatchUserId) {
 
       console.log(`Item ${item._id} added and cache flags updated`);
     } catch (cacheError) {
-      // Log but don't fail the operation if cache update fails
       console.error("Cache invalidation error:", cacheError);
     }
 
     return {
       message: "Item added successfully",
       item: item.id,
+      imagesUploaded: item.itemImages.length,
     };
   } catch (error) {
     console.error("Error adding item:", error);
@@ -56,7 +98,12 @@ async function addItem(data, thingsMatchUserId) {
   }
 }
 
-async function getItemsToSwipe(thingsMatchUserId, notInInterest) {
+async function getItemsToSwipe(
+  thingsMatchUserId,
+  notInInterest,
+  coordinates,
+  maxDistance = 1000
+) {
   try {
     let itemsToSwipe = [];
 
@@ -65,10 +112,15 @@ async function getItemsToSwipe(thingsMatchUserId, notInInterest) {
       CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId)
     );
 
+    // Generate a unique cache key that includes location parameters if provided
+    const locationCacheKey = coordinates
+      ? `${CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId)}_loc_${
+          coordinates[0]
+        }_${coordinates[1]}_${maxDistance}`
+      : CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId);
+
     // Try to get items from cache first
-    const cachedItems = await RedisService.get(
-      CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId)
-    );
+    const cachedItems = await RedisService.get(locationCacheKey);
 
     // If we have cached items but they might be stale, check timestamp
     if (cachedItems && cachedItems.length > 0) {
@@ -80,9 +132,7 @@ async function getItemsToSwipe(thingsMatchUserId, notInInterest) {
         console.log(
           `Cache for user ${thingsMatchUserId} is stale, refreshing data...`
         );
-        await RedisService.del(
-          CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId)
-        );
+        await RedisService.del(locationCacheKey);
       } else {
         console.log(
           `Retrieved ${cachedItems.length} items from cache for user ${thingsMatchUserId}`
@@ -94,7 +144,6 @@ async function getItemsToSwipe(thingsMatchUserId, notInInterest) {
       }
     }
 
-    // If no valid cached items, proceed with database queries
     // Find all available items not created by the current user
     const today = new Date();
     const oneMonthAgo = new Date(today);
@@ -116,11 +165,22 @@ async function getItemsToSwipe(thingsMatchUserId, notInInterest) {
       createdAt: { $gte: oneMonthAgo },
     };
 
-    // Add category filters based on notInInterest parameter
     if (notInInterest === true) {
       // No category filter needed - show all items
     } else if (notInInterest === false) {
       fetchItemQuery.category = { $nin: userInterests };
+    }
+
+    if (coordinates && coordinates.length === 2) {
+      fetchItemQuery["location"] = {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [coordinates[0], coordinates[1]], // [longitude, latitude]
+          },
+          $maxDistance: maxDistance,
+        },
+      };
     }
 
     console.log("🚀 ~ getItemsToSwipe ~ fetchItemQuery:", fetchItemQuery);
@@ -140,11 +200,7 @@ async function getItemsToSwipe(thingsMatchUserId, notInInterest) {
 
     if (!swipes || swipes.length === 0) {
       const now = Date.now();
-      await RedisService.set(
-        CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId),
-        items,
-        3600
-      );
+      await RedisService.set(locationCacheKey, items, 3600);
       await RedisService.set(
         CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
         now,
@@ -177,11 +233,7 @@ async function getItemsToSwipe(thingsMatchUserId, notInInterest) {
     }
 
     const now = Date.now();
-    await RedisService.set(
-      CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId),
-      itemsToSwipe,
-      3600
-    );
+    await RedisService.set(locationCacheKey, itemsToSwipe, 3600);
     await RedisService.set(
       CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
       now,
@@ -579,6 +631,107 @@ async function getCreatedItems(thingsMatchUserId) {
   }
 }
 
+async function updateItem(itemId, data, thingsMatchUserId, files) {
+  try {
+    // Check if item exists and belongs to the user
+    const item = await Item.findById(itemId);
+    if (!item) {
+      throw new Error("Item not found");
+    }
+
+    if (item.userId.toString() !== thingsMatchUserId.toString()) {
+      throw new Error("You are not authorized to update this item");
+    }
+
+    // Update basic fields if provided
+    if (data.name) item.name = data.name;
+    if (data.description) item.description = data.description;
+    if (data.category) item.category = data.category;
+
+    // Update location if address is provided
+    if (data.address) {
+      try {
+        const geoData = await getCoordinates(data.address);
+        item.location = {
+          type: "Point",
+          coordinates: [geoData.lng, geoData.lat],
+          address: data.address,
+        };
+        console.log(
+          `Updated address to coordinates: [${geoData.lng}, ${geoData.lat}]`
+        );
+      } catch (geoError) {
+        console.error("Geocoding error:", geoError);
+        throw new Error(`Failed to geocode address: ${geoError.message}`);
+      }
+    }
+
+    // Process uploaded images if any
+    if (files && files.length > 0) {
+      const imagePromises = files.map(async (file) => {
+        try {
+          const result = await cloudinaryUpload.image(file.path);
+          return {
+            public_id: result.public_id,
+            url: result.secure_url,
+          };
+        } catch (error) {
+          console.error("Error uploading image to Cloudinary:", error);
+          return null;
+        }
+      });
+
+      const uploadedImages = await Promise.all(imagePromises);
+      // Filter out any failed uploads
+      const newImages = uploadedImages.filter((img) => img !== null);
+
+      // Append new images to existing ones
+      item.itemImages = [...item.itemImages, ...newImages];
+    }
+
+    // Handle image removal if specified
+    if (data.removeImages && Array.isArray(data.removeImages)) {
+      // Filter out images that should be removed
+      item.itemImages = item.itemImages.filter((img) => {
+        const shouldRemove = data.removeImages.includes(img.public_id);
+
+        // Delete from Cloudinary if being removed
+        if (shouldRemove) {
+          try {
+            cloudinaryUpload.deleteImage(img.public_id);
+          } catch (error) {
+            console.error("Error deleting image from Cloudinary:", error);
+          }
+        }
+
+        return !shouldRemove;
+      });
+    }
+
+    await item.save();
+
+    // Update cache
+    await RedisService.set(CACHE_KEYS.ITEM_DETAIL(item._id), item);
+    await RedisService.set(CACHE_KEYS.ITEMS_LAST_UPDATED, Date.now());
+
+    // Clear relevant caches
+    await RedisService.del(CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId));
+    await RedisService.del(CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId));
+    await RedisService.del(CACHE_KEYS.USER_CREATED_ITEMS(thingsMatchUserId));
+
+    console.log(`Item ${item._id} updated and cache flags updated`);
+
+    return {
+      message: "Item updated successfully",
+      item: item,
+    };
+  } catch (error) {
+    console.error("Error updating item:", error);
+    throw new Error(`Failed to update item: ${error.message}`);
+  }
+}
+
+// Add to module exports
 module.exports = {
   addItem,
   getItemsToSwipe,
@@ -586,4 +739,5 @@ module.exports = {
   swipeDislike,
   swipeLike,
   getCreatedItems,
+  updateItem,
 };

@@ -1,5 +1,6 @@
 const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
 const User = require("../../models/userModel.js");
+const getCoordinates = require("../../utility/geocode.js");
 const jwt = require("jsonwebtoken");
 
 // Helper to verify JWT token
@@ -82,17 +83,41 @@ async function thingsMatchAccount(token) {
     isRegistered,
   };
 }
+
 async function updateThingsMatchAccount(token, updateData) {
   if (!token) {
     throw new Error("Token is required");
   }
 
+  // Handle address geocoding if provided
+  if (updateData.address) {
+    try {
+      const geoData = await getCoordinates(updateData.address);
+
+      updateData.location = {
+        type: "Point",
+        coordinates: [geoData.lng, geoData.lat],
+        address: updateData.address,
+      };
+
+      // Log the geocoding result
+      console.log(
+        `Geocoded address to coordinates: [${geoData.lng}, ${geoData.lat}]`
+      );
+
+      delete updateData.address;
+    } catch (error) {
+      throw new Error(`Geocoding failed: ${error.message}`);
+    }
+  }
+
   const thingsMatchAccountId = getUserFromToken(token);
 
+  // Update the user account with the new data
   const updatedAccount = await ThingsMatchUser.findByIdAndUpdate(
     thingsMatchAccountId,
     updateData,
-    { new: true }
+    { new: true, runValidators: true } // Added runValidators to ensure data integrity
   );
 
   if (!updatedAccount) {
@@ -102,7 +127,22 @@ async function updateThingsMatchAccount(token, updateData) {
   return updatedAccount;
 }
 
+//get user profile
+async function getUser(thingsMatchAccountId) {
+  const user = await ThingsMatchUser.findById(thingsMatchAccountId).populate(
+    "natcycleId",
+    "firstName lastName email profilePicture phoneNumber"
+  );
+
+  if (!user) {
+    throw new Error("ThingsMatch user not found");
+  }
+
+  return user;
+}
+
 module.exports = {
   thingsMatchAccount,
   updateThingsMatchAccount,
+  getUser,
 };

@@ -1,6 +1,9 @@
 const { Router } = require("express");
 const thingsMatchAuthController = require("../../controllers/thingsMatch/auth.controller.js");
-const { isAuth } = require("../../middleware/authMiddleware.js");
+const {
+  isAuth,
+  isThingsMatchUser,
+} = require("../../middleware/authMiddleware.js");
 
 const router = Router();
 
@@ -14,6 +17,13 @@ router.get(
 router.put(
   "/updateAccount/:token",
   thingsMatchAuthController.updateThingsMatchAccount
+);
+
+// Get ThingsMatch user profile
+router.get(
+  "/profile",
+  isThingsMatchUser,
+  thingsMatchAuthController.getThingsMatchUser
 );
 
 module.exports = router;
