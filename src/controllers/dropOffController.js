@@ -8,7 +8,8 @@ const cuCalculationService = require("../service/cuCalculationService");
 
 // add new drop off
 exports.addDropOff = async (req, res) => {
-  const { location, itemType, description, campaignId } = req.body;
+  const { location, itemType, itemQuantity, description, campaignId } =
+    req.body;
 
   const findDropOffLocation = await DropOffLocation.findById(location);
 
@@ -32,6 +33,7 @@ exports.addDropOff = async (req, res) => {
       dropOffLocation: findDropOffLocation._id,
       user: req.user._id,
       itemType,
+      itemQuantity,
       description,
       campaign: campaignId ? campaign._id : null,
     });
@@ -42,7 +44,7 @@ exports.addDropOff = async (req, res) => {
 
       if (!result) return res.status(400).send("Error uploading image");
 
-      dropOff.image = {
+      dropOff.receipt = {
         public_id: result.public_id,
         url: result.secure_url,
       };

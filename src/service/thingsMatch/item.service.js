@@ -102,49 +102,57 @@ async function getItemsToSwipe(
   thingsMatchUserId,
   notInInterest,
   coordinates,
-  maxDistance = 1000
+  maxDistance = 1000000,
+  testing
 ) {
   try {
     let itemsToSwipe = [];
 
-    const lastUpdated = await RedisService.get(CACHE_KEYS.ITEMS_LAST_UPDATED);
-    const userCacheTimestamp = await RedisService.get(
-      CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId)
-    );
+    // Don't use cache if in testing mode
+    if (!testing) {
+      const lastUpdated = await RedisService.get(CACHE_KEYS.ITEMS_LAST_UPDATED);
+      const userCacheTimestamp = await RedisService.get(
+        CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId)
+      );
 
-    // Generate a unique cache key that includes location parameters if provided
-    const locationCacheKey = coordinates
-      ? `${CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId)}_loc_${
-          coordinates[0]
-        }_${coordinates[1]}_${maxDistance}`
-      : CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId);
+      // Generate cache key including all query parameters
+      const cacheKeyParams = [
+        thingsMatchUserId,
+        notInInterest,
+        testing,
+        coordinates
+          ? `${coordinates[0]}_${coordinates[1]}_${maxDistance}`
+          : "no_loc",
+      ].join("_");
 
-    // Try to get items from cache first
-    const cachedItems = await RedisService.get(locationCacheKey);
+      const locationCacheKey = `${CACHE_KEYS.USER_AVAILABLE_ITEMS(
+        thingsMatchUserId
+      )}_${cacheKeyParams}`;
 
-    // If we have cached items but they might be stale, check timestamp
-    if (cachedItems && cachedItems.length > 0) {
-      // If no timestamp for this user's cache or it's older than last update, invalidate cache
-      if (
-        !userCacheTimestamp ||
-        (lastUpdated && parseInt(lastUpdated) > parseInt(userCacheTimestamp))
-      ) {
+      const cachedItems = await RedisService.get(locationCacheKey);
+
+      if (cachedItems && cachedItems.length > 0) {
+        const isCacheStale =
+          !userCacheTimestamp ||
+          (lastUpdated && parseInt(lastUpdated) > parseInt(userCacheTimestamp));
+
+        if (!isCacheStale) {
+          console.log(
+            `Retrieved ${cachedItems.length} items from cache for user ${thingsMatchUserId}`
+          );
+          return {
+            message: "Items available to swipe (from cache)",
+            items: cachedItems,
+          };
+        }
+
         console.log(
           `Cache for user ${thingsMatchUserId} is stale, refreshing data...`
         );
         await RedisService.del(locationCacheKey);
-      } else {
-        console.log(
-          `Retrieved ${cachedItems.length} items from cache for user ${thingsMatchUserId}`
-        );
-        return {
-          message: "Items available to swipe (from cache)",
-          items: cachedItems,
-        };
       }
     }
 
-    // Find all available items not created by the current user
     const today = new Date();
     const oneMonthAgo = new Date(today);
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -156,8 +164,6 @@ async function getItemsToSwipe(
         items: [],
       };
     }
-    const userInterests = user.interests;
-    console.log(userInterests, "userInterests");
 
     let fetchItemQuery = {
       userId: { $ne: thingsMatchUserId.toString() },
@@ -165,28 +171,23 @@ async function getItemsToSwipe(
       createdAt: { $gte: oneMonthAgo },
     };
 
-    if (notInInterest === true) {
-      // No category filter needed - show all items
-    } else if (notInInterest === false) {
-      fetchItemQuery.category = { $nin: userInterests };
+    if (notInInterest === false) {
+      fetchItemQuery.category = { $nin: user.interests };
     }
 
-    if (coordinates && coordinates.length === 2) {
-      fetchItemQuery["location"] = {
+    if (!testing && coordinates && coordinates.length === 2) {
+      fetchItemQuery.location = {
         $near: {
           $geometry: {
             type: "Point",
-            coordinates: [coordinates[0], coordinates[1]], // [longitude, latitude]
+            coordinates: [coordinates[0], coordinates[1]],
           },
           $maxDistance: maxDistance,
         },
       };
     }
 
-    console.log("🚀 ~ getItemsToSwipe ~ fetchItemQuery:", fetchItemQuery);
-
     const items = await Item.find(fetchItemQuery);
-    console.log("🚀 ~ getItemsToSwipe ~ items:", items);
 
     if (!items || items.length === 0) {
       return {
@@ -195,21 +196,30 @@ async function getItemsToSwipe(
       };
     }
 
-    // Get user's existing swipes
     const swipes = await Swipe.find({ userId: thingsMatchUserId });
 
     if (!swipes || swipes.length === 0) {
-      const now = Date.now();
-      await RedisService.set(locationCacheKey, items, 3600);
-      await RedisService.set(
-        CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
-        now,
-        3600
-      );
+      if (!testing) {
+        const now = Date.now();
+        const cacheKeyParams = [
+          thingsMatchUserId,
+          notInInterest,
+          testing,
+          coordinates
+            ? `${coordinates[0]}_${coordinates[1]}_${maxDistance}`
+            : "no_loc",
+        ].join("_");
+        const locationCacheKey = `${CACHE_KEYS.USER_AVAILABLE_ITEMS(
+          thingsMatchUserId
+        )}_${cacheKeyParams}`;
 
-      console.log(
-        `Cached ${items.length} items for new user ${thingsMatchUserId}`
-      );
+        await RedisService.set(locationCacheKey, items, 3600);
+        await RedisService.set(
+          CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
+          now,
+          3600
+        );
+      }
 
       return {
         message: "All items available to swipe",
@@ -232,17 +242,27 @@ async function getItemsToSwipe(
       };
     }
 
-    const now = Date.now();
-    await RedisService.set(locationCacheKey, itemsToSwipe, 3600);
-    await RedisService.set(
-      CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
-      now,
-      3600
-    );
+    if (!testing) {
+      const now = Date.now();
+      const cacheKeyParams = [
+        thingsMatchUserId,
+        notInInterest,
+        testing,
+        coordinates
+          ? `${coordinates[0]}_${coordinates[1]}_${maxDistance}`
+          : "no_loc",
+      ].join("_");
+      const locationCacheKey = `${CACHE_KEYS.USER_AVAILABLE_ITEMS(
+        thingsMatchUserId
+      )}_${cacheKeyParams}`;
 
-    console.log(
-      `Cached ${itemsToSwipe.length} filtered items for user ${thingsMatchUserId}`
-    );
+      await RedisService.set(locationCacheKey, itemsToSwipe, 3600);
+      await RedisService.set(
+        CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
+        now,
+        3600
+      );
+    }
 
     return {
       message: "Items available to swipe",

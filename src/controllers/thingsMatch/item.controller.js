@@ -29,7 +29,7 @@ const addItem = catchAsync(async (req, res) => {
 const getItemsToSwipe = catchAsync(async (req, res) => {
   try {
     const thingsMatchUserId = req.TMID;
-    const { longitude, latitude, distance, notInInterest } = req.query;
+    const { longitude, latitude, distance, notInInterest, testing } = req.query;
     console.log(req.query);
 
     // Convert query parameters
@@ -38,7 +38,7 @@ const getItemsToSwipe = catchAsync(async (req, res) => {
       longitude && latitude
         ? [parseFloat(longitude), parseFloat(latitude)]
         : null;
-    const maxDistance = distance ? parseInt(distance) : 10000;
+    const maxDistance = distance ? parseInt(distance) : 1000000;
 
     const result = await itemService.getItemsToSwipe(
       thingsMatchUserId,
