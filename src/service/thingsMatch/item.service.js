@@ -108,51 +108,130 @@ async function getItemsToSwipe(
   try {
     let itemsToSwipe = [];
 
-    // Don't use cache if in testing mode
-    if (!testing) {
-      const lastUpdated = await RedisService.get(CACHE_KEYS.ITEMS_LAST_UPDATED);
-      const userCacheTimestamp = await RedisService.get(
-        CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId)
+    // Check if we're in testing mode first
+    const isTestingMode = testing;
+
+    if (isTestingMode) {
+      console.log("Testing mode enabled - bypassing all cache operations");
+      // Delete all caches for testing mode
+      await RedisService.flushAll();
+      console.log("All caches cleared for testing mode");
+
+      // Find all available items not created by the current user
+      const today = new Date();
+      const oneMonthAgo = new Date(today);
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+      const user = await ThingsMatchUser.findById(thingsMatchUserId);
+      if (!user) {
+        return {
+          message: "User not found",
+          items: [],
+        };
+      }
+      const userInterests = user.interests;
+      console.log(userInterests, "userInterests");
+
+      let fetchItemQuery = {
+        userId: { $ne: thingsMatchUserId.toString() },
+        status: "available",
+        createdAt: { $gte: oneMonthAgo },
+      };
+
+      if (notInInterest === true) {
+        // No category filter needed - show all items
+      } else if (notInInterest === false) {
+        fetchItemQuery.category = { $nin: userInterests };
+      }
+
+      if (coordinates && coordinates.length === 2) {
+        console.log("Testing mode - not doing any geocoding");
+        // No geocoding in testing mode
+      }
+
+      console.log("🚀 ~ getItemsToSwipe ~ fetchItemQuery:", fetchItemQuery);
+
+      const items = await Item.find(fetchItemQuery);
+      console.log("🚀 ~ getItemsToSwipe ~ items:", items);
+
+      if (!items || items.length === 0) {
+        return {
+          message: "No items available to swipe",
+          items: [],
+        };
+      }
+
+      // Get user's existing swipes
+      const swipes = await Swipe.find({ userId: thingsMatchUserId });
+
+      if (!swipes || swipes.length === 0) {
+        return {
+          message: "All items available to swipe",
+          items: items,
+        };
+      }
+
+      const swipedItemIds = new Set(
+        swipes.map((swipe) => swipe.itemId.toString())
       );
 
-      // Generate cache key including all query parameters
-      const cacheKeyParams = [
-        thingsMatchUserId,
-        notInInterest,
-        testing,
-        coordinates
-          ? `${coordinates[0]}_${coordinates[1]}_${maxDistance}`
-          : "no_loc",
-      ].join("_");
+      itemsToSwipe = items.filter(
+        (item) => !swipedItemIds.has(item._id.toString())
+      );
 
-      const locationCacheKey = `${CACHE_KEYS.USER_AVAILABLE_ITEMS(
-        thingsMatchUserId
-      )}_${cacheKeyParams}`;
+      if (itemsToSwipe.length === 0) {
+        return {
+          message: "You've seen all available items",
+          items: [],
+        };
+      }
 
-      const cachedItems = await RedisService.get(locationCacheKey);
+      return {
+        message: "Items available to swipe (testing mode)",
+        items: itemsToSwipe,
+      };
+    }
 
-      if (cachedItems && cachedItems.length > 0) {
-        const isCacheStale =
-          !userCacheTimestamp ||
-          (lastUpdated && parseInt(lastUpdated) > parseInt(userCacheTimestamp));
+    // Normal non-testing flow continues here
+    const lastUpdated = await RedisService.get(CACHE_KEYS.ITEMS_LAST_UPDATED);
+    const userCacheTimestamp = await RedisService.get(
+      CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId)
+    );
 
-        if (!isCacheStale) {
-          console.log(
-            `Retrieved ${cachedItems.length} items from cache for user ${thingsMatchUserId}`
-          );
-          return {
-            message: "Items available to swipe (from cache)",
-            items: cachedItems,
-          };
-        }
+    // Generate a unique cache key that includes location parameters if provided
+    const locationCacheKey = coordinates
+      ? `${CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId)}_loc_${
+          coordinates[0]
+        }_${coordinates[1]}_${maxDistance}`
+      : CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId);
 
+    // Try to get items from cache first
+    const cachedItems = await RedisService.get(locationCacheKey);
+
+    // If we have cached items but they might be stale, check timestamp
+    console.log("Testing is false, checking cache validity");
+    if (cachedItems && cachedItems.length > 0) {
+      // If no timestamp for this user's cache or it's older than last update, invalidate cache
+      if (
+        !userCacheTimestamp ||
+        (lastUpdated && parseInt(lastUpdated) > parseInt(userCacheTimestamp))
+      ) {
         console.log(
           `Cache for user ${thingsMatchUserId} is stale, refreshing data...`
         );
         await RedisService.del(locationCacheKey);
+      } else {
+        console.log(
+          `Retrieved ${cachedItems.length} items from cache for user ${thingsMatchUserId}`
+        );
+        return {
+          message: "Items available to swipe (from cache)",
+          items: cachedItems,
+        };
       }
     }
 
+    // Find all available items not created by the current user
     const today = new Date();
     const oneMonthAgo = new Date(today);
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -164,6 +243,8 @@ async function getItemsToSwipe(
         items: [],
       };
     }
+    const userInterests = user.interests;
+    console.log(userInterests, "userInterests");
 
     let fetchItemQuery = {
       userId: { $ne: thingsMatchUserId.toString() },
@@ -171,23 +252,33 @@ async function getItemsToSwipe(
       createdAt: { $gte: oneMonthAgo },
     };
 
-    if (notInInterest === false) {
-      fetchItemQuery.category = { $nin: user.interests };
+    if (notInInterest === true) {
+      // No category filter needed - show all items
+    } else if (notInInterest === false) {
+      fetchItemQuery.category = { $nin: userInterests };
     }
 
-    if (!testing && coordinates && coordinates.length === 2) {
-      fetchItemQuery.location = {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [coordinates[0], coordinates[1]],
+    if (coordinates && coordinates.length === 2) {
+      if (!testing) {
+        fetchItemQuery["location"] = {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: [coordinates[0], coordinates[1]], // [longitude, latitude]
+            },
+            $maxDistance: maxDistance,
           },
-          $maxDistance: maxDistance,
-        },
-      };
+        };
+      } else {
+        //dont do any geocoding, just return all items in the db
+        console.log("testing is true, not doing any geocoding");
+      }
     }
+
+    console.log("🚀 ~ getItemsToSwipe ~ fetchItemQuery:", fetchItemQuery);
 
     const items = await Item.find(fetchItemQuery);
+    console.log("🚀 ~ getItemsToSwipe ~ items:", items);
 
     if (!items || items.length === 0) {
       return {
@@ -196,30 +287,21 @@ async function getItemsToSwipe(
       };
     }
 
+    // Get user's existing swipes
     const swipes = await Swipe.find({ userId: thingsMatchUserId });
 
     if (!swipes || swipes.length === 0) {
-      if (!testing) {
-        const now = Date.now();
-        const cacheKeyParams = [
-          thingsMatchUserId,
-          notInInterest,
-          testing,
-          coordinates
-            ? `${coordinates[0]}_${coordinates[1]}_${maxDistance}`
-            : "no_loc",
-        ].join("_");
-        const locationCacheKey = `${CACHE_KEYS.USER_AVAILABLE_ITEMS(
-          thingsMatchUserId
-        )}_${cacheKeyParams}`;
+      const now = Date.now();
+      await RedisService.set(locationCacheKey, items, 3600);
+      await RedisService.set(
+        CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
+        now,
+        3600
+      );
 
-        await RedisService.set(locationCacheKey, items, 3600);
-        await RedisService.set(
-          CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
-          now,
-          3600
-        );
-      }
+      console.log(
+        `Cached ${items.length} items for new user ${thingsMatchUserId}`
+      );
 
       return {
         message: "All items available to swipe",
@@ -242,27 +324,17 @@ async function getItemsToSwipe(
       };
     }
 
-    if (!testing) {
-      const now = Date.now();
-      const cacheKeyParams = [
-        thingsMatchUserId,
-        notInInterest,
-        testing,
-        coordinates
-          ? `${coordinates[0]}_${coordinates[1]}_${maxDistance}`
-          : "no_loc",
-      ].join("_");
-      const locationCacheKey = `${CACHE_KEYS.USER_AVAILABLE_ITEMS(
-        thingsMatchUserId
-      )}_${cacheKeyParams}`;
+    const now = Date.now();
+    await RedisService.set(locationCacheKey, itemsToSwipe, 3600);
+    await RedisService.set(
+      CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
+      now,
+      3600
+    );
 
-      await RedisService.set(locationCacheKey, itemsToSwipe, 3600);
-      await RedisService.set(
-        CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
-        now,
-        3600
-      );
-    }
+    console.log(
+      `Cached ${itemsToSwipe.length} filtered items for user ${thingsMatchUserId}`
+    );
 
     return {
       message: "Items available to swipe",

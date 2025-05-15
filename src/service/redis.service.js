@@ -4,7 +4,7 @@ class RedisService {
   constructor() {
     this.client = null;
     this.isConnected = false;
-    this.isProduction = process.env.NODE_ENV === 'production';
+    this.isProduction = process.env.NODE_ENV === "production";
   }
 
   // Initialize Redis connection
@@ -19,7 +19,9 @@ class RedisService {
         const redisUrl = process.env.PROD_REDIS_HOST;
 
         if (!redisUrl) {
-          throw new Error("Production Redis URL not configured (PROD_REDIS_HOST)");
+          throw new Error(
+            "Production Redis URL not configured (PROD_REDIS_HOST)"
+          );
         }
 
         this.client = redis.createClient({
@@ -46,7 +48,11 @@ class RedisService {
 
       // Handle successful connection
       this.client.on("connect", () => {
-        console.log(`Connected to Redis in ${this.isProduction ? 'production' : 'development'} mode`);
+        console.log(
+          `Connected to Redis in ${
+            this.isProduction ? "production" : "development"
+          } mode`
+        );
         this.isConnected = true;
       });
 
@@ -96,7 +102,8 @@ class RedisService {
   }
 
   // Set a key-value pair with optional TTL (time-to-live in seconds)
-  async set(key, value, ttl = 3600) { // Default TTL: 1 hour
+  async set(key, value, ttl = 3600) {
+    // Default TTL: 1 hour
     return this.safeExecute(async () => {
       const serializedValue = JSON.stringify(value);
       await this.client.setEx(key, ttl, serializedValue);
@@ -141,6 +148,15 @@ class RedisService {
       }
       return 0;
     }, 0);
+  }
+
+  // Flush all data from Redis
+  async flushAll() {
+    return this.safeExecute(async () => {
+      await this.client.flushAll();
+      console.log("Flushed all data from Redis");
+      return true;
+    }, false);
   }
 
   // Close Redis connection

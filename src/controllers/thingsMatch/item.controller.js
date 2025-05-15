@@ -44,7 +44,8 @@ const getItemsToSwipe = catchAsync(async (req, res) => {
       thingsMatchUserId,
       parsedNotInInterest,
       coordinates,
-      maxDistance
+      maxDistance,
+      testing
     );
 
     return successResponse(res, result);
