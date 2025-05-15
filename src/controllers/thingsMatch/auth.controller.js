@@ -44,20 +44,18 @@ const updateThingsMatchAccount = catchAsync(async (req, res) => {
   }
 });
 
-// Get ThingsMatch user profile
-const getThingsMatchUser = catchAsync(async (req, res) => {
+//get user
+const getUser = catchAsync(async (req, res) => {
   try {
-    // Use the authenticated user's ID from middleware
-    const thingsMatchUserId = req.TMID;
-
-    const user = await thingsMatchAuthService.getUser(thingsMatchUserId);
+    const token = req.params.token;
+    const user = await thingsMatchAuthService.getUser(req.params.userId);
 
     return successResponse(res, {
-      message: "User profile retrieved successfully",
-      user: user,
+      message: "User fetched successfully",
+      user,
     });
   } catch (error) {
-    console.log("Error in getThingsMatchUser controller:", error);
+    console.log("Error in getUser controller:", error);
     if (error instanceof Error) {
       return errorResponse(res, error.message);
     }
@@ -67,5 +65,5 @@ const getThingsMatchUser = catchAsync(async (req, res) => {
 module.exports = {
   thingsMatchAccount,
   updateThingsMatchAccount,
-  getThingsMatchUser,
+  getUser,
 };

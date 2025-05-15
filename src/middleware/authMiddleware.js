@@ -84,19 +84,25 @@ exports.isThingsMatchUser = async (req, res, next) => {
       });
     }
 
-    // Extract token from header
-    const authHeader = req.headers.authorization;
-    const tokenParts = authHeader.split(' ');
 
-    // Check if token format is correct
-    if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
+    const authHeader = req.headers.authorization.replace(/,/g, '');
+    console.log("🚀 ~ exports.isThingsMatchUser= ~ cleaned authHeader:", authHeader);
+
+
+    const tokenParts = authHeader.split(' ').filter(part => part);
+    console.log("Token parts:", tokenParts);
+
+
+    if (tokenParts.length < 2 || tokenParts[tokenParts.length - 2] !== 'Bearer') {
       return res.status(401).json({
         message: 'Access Denied',
         error: 'Invalid authorization format. Use "Bearer [token]"'
       });
     }
 
-    const token = tokenParts[1];
+    // Extract the token (last item in the array)
+    const token = tokenParts[tokenParts.length - 1];
+    console.log("Extracted token:", token);
 
     // Verify the token
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);

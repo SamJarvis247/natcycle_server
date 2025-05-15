@@ -21,9 +21,9 @@ router.put(
 
 // Get ThingsMatch user profile
 router.get(
-  "/profile",
+  "/profile/:userId",
   isThingsMatchUser,
-  thingsMatchAuthController.getThingsMatchUser
+  thingsMatchAuthController.getUser
 );
 
 module.exports = router;
