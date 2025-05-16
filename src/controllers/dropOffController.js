@@ -171,7 +171,6 @@ exports.adminGetDropOffs = async (req, res) => {
   }
 };
 
-// Update the createDropOff function to calculate CU
 exports.createDropOff = catchAsync(async (req, res) => {
   const { location, itemType, description, campaignId } = req.body;
 
@@ -215,6 +214,42 @@ exports.createDropOff = catchAsync(async (req, res) => {
 
     await dropOff.save();
 
+    // After creating the drop-off, update the user's CU
+    if (dropOff) {
+      try {
+        // Calculate and update CU for each material type in the drop-off
+        const cuUpdates = await Promise.all(
+          Object.entries(newDropOff.items).map(async ([category, quantity]) => {
+            if (quantity > 0) {
+              return cuCalculationService.updateUserCU(
+                req.user._id,
+                category,
+                quantity
+              );
+            }
+            return null;
+          })
+        );
+
+        // Filter out null results and get total CU added
+        const validCuUpdates = cuUpdates.filter((update) => update !== null);
+        const totalCUAdded = validCuUpdates.reduce(
+          (sum, update) => sum + update.addedCU,
+          0
+        );
+
+        // Include CU information in the response
+        responseData.cuAdded = totalCUAdded;
+        responseData.newTotalCU =
+          validCuUpdates.length > 0
+            ? validCuUpdates[validCuUpdates.length - 1].newTotalCU
+            : req.user.carbonUnits;
+      } catch (error) {
+        console.error("Error calculating CU for drop-off:", error);
+        // Continue with the response even if CU calculation fails
+      }
+    }
+
     res.status(201).json({
       message: "Drop off request added successfully",
       data: dropOff,
@@ -223,44 +258,8 @@ exports.createDropOff = catchAsync(async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 
-  // After creating the drop-off, update the user's CU
-  if (newDropOff) {
-    try {
-      // Calculate and update CU for each material type in the drop-off
-      const cuUpdates = await Promise.all(
-        Object.entries(newDropOff.items).map(async ([category, quantity]) => {
-          if (quantity > 0) {
-            return cuCalculationService.updateUserCU(
-              req.user._id,
-              category,
-              quantity
-            );
-          }
-          return null;
-        })
-      );
-
-      // Filter out null results and get total CU added
-      const validCuUpdates = cuUpdates.filter((update) => update !== null);
-      const totalCUAdded = validCuUpdates.reduce(
-        (sum, update) => sum + update.addedCU,
-        0
-      );
-
-      // Include CU information in the response
-      responseData.cuAdded = totalCUAdded;
-      responseData.newTotalCU =
-        validCuUpdates.length > 0
-          ? validCuUpdates[validCuUpdates.length - 1].newTotalCU
-          : req.user.carbonUnits;
-    } catch (error) {
-      console.error("Error calculating CU for drop-off:", error);
-      // Continue with the response even if CU calculation fails
-    }
-  }
-
-  res.status(201).json({
-    status: "success",
-    data: responseData,
-  });
+  // res.status(201).json({
+  //   status: "success",
+  //   data: responseData,
+  // });
 });

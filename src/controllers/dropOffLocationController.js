@@ -100,6 +100,7 @@ exports.getDropOffLocationById = async (req, res) => {
 // get nearest drop off locations
 exports.getNearestDropOffLocations = async (req, res) => {
   const { latitude, longitude, distance = 10000, itemType } = req.query;
+  console.log(req.query);
 
   if (!latitude || !longitude) {
     return res
@@ -110,6 +111,7 @@ exports.getNearestDropOffLocations = async (req, res) => {
   const query = {};
 
   if (itemType) {
+    console.log(itemType);
     query.itemType = itemType;
   }
 
@@ -133,6 +135,7 @@ exports.getNearestDropOffLocations = async (req, res) => {
           $maxDistance: distance,
         },
       },
+      itemType: itemType,
     });
 
     res.status(200).json({

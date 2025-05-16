@@ -107,6 +107,7 @@ async function getItemsToSwipe(
 ) {
   try {
     let itemsToSwipe = [];
+    console.log(testing, "TESTING");
 
     // Check if we're in testing mode first
     const isTestingMode = testing;
@@ -152,7 +153,7 @@ async function getItemsToSwipe(
       console.log("🚀 ~ getItemsToSwipe ~ fetchItemQuery:", fetchItemQuery);
 
       const items = await Item.find(fetchItemQuery);
-      console.log("🚀 ~ getItemsToSwipe ~ items:", items);
+      console.log("🚀 ~ getItemsToSwipe ~ items:", items.length);
 
       if (!items || items.length === 0) {
         return {
@@ -165,8 +166,15 @@ async function getItemsToSwipe(
       const swipes = await Swipe.find({ userId: thingsMatchUserId });
 
       if (!swipes || swipes.length === 0) {
+        console.log("User has no swipes - sending all items.");
+        console.log(
+          itemsToSwipe.length,
+          items.length,
+          swipes,
+          "IMPORTAND CREDENTIALS"
+        );
         return {
-          message: "All items available to swipe",
+          message: "All items available to swipe, user has no swipes.",
           items: items,
         };
       }
@@ -178,6 +186,7 @@ async function getItemsToSwipe(
       itemsToSwipe = items.filter(
         (item) => !swipedItemIds.has(item._id.toString())
       );
+      console.log(itemsToSwipe.length, swipes, "IMPORTAND CREDENTIALS");
 
       if (itemsToSwipe.length === 0) {
         return {
