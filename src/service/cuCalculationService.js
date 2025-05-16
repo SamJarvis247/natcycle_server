@@ -22,7 +22,7 @@ async function calculateCU(materialCategory, materialName, quantity) {
     }
 
     // Calculate CU based on material's CU value and quantity
-    const totalCU = material.cuValue * quantity;
+    const totalCU = material.cuValue * (quantity / 2);
 
     return {
       material,
@@ -134,8 +134,47 @@ async function recalculateAllUsersCU() {
   }
 }
 
+//CU to NATPOINTS CONVERSION(1CU = 5NATPOINTS)
+async function convertCUToNatPoints(cuValue) {
+  try {
+    const natPoints = cuValue * 1.5;
+    return natPoints;
+  } catch (error) {
+    console.error("Error converting CU to NatPoints:", error);
+    throw error;
+  }
+}
+//update user natpoints
+async function updateUserNatPoints(userId, totalCU) {
+  try {
+    const natPoints = await convertCUToNatPoints(totalCU);
+
+    // Update user's carbon units
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Update user with new CU and item count
+    const updatedUser = await User.findByIdAndUpdate(userId, {
+      $inc: {
+        pointsEarned: natPoints,
+      },
+    });
+    return {
+      natPoints: natPoints,
+      newTotalCU: updatedUser.natPoints,
+    };
+  } catch (error) {
+    console.error("Error updating user CU:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   calculateCU,
   updateUserCU,
   recalculateAllUsersCU,
+  convertCUToNatPoints,
+  updateUserNatPoints,
 };

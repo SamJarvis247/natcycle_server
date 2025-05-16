@@ -10,6 +10,7 @@ const {
   getDropOffById,
   updateDropOffStatus,
   adminGetDropOffs,
+  getUserDropOffs,
 } = require("../controllers/dropOffController");
 
 const { isAuth, isAdmin } = require("../middleware/authMiddleware");
@@ -22,8 +23,11 @@ router.get("/admin", isAuth, isAdmin, adminGetDropOffs);
 
 router.get("/", isAuth, isAdmin, getDropOffs);
 
-router.get("/:id", isAuth, getDropOffById);
+router.get("/user/:userId", isAuth, getUserDropOffs);
 
-router.put("/:id", isAuth, isAdmin, updateDropOffStatus);
+router
+  .route("/:id")
+  .get(isAuth, getDropOffById)
+  .put(isAuth, updateDropOffStatus);
 
 module.exports = router;

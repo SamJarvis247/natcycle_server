@@ -18,6 +18,7 @@ const BASE_COORDINATES = {
 
 // Drop-off locations to seed
 const dropOffLocations = [
+  // Original locations
   {
     name: "Rumueme Recycling Center",
     itemType: "plastic",
@@ -35,8 +36,8 @@ const dropOffLocations = [
   },
   {
     name: "Fabric Recycling Hub",
-    itemType: "fabrics",
-    description: "Collection center for old clothes and fabrics",
+    itemType: "fabric",
+    description: "Collection center for old clothes and fabric",
     address: "5 Ikwerre Road, Port Harcourt",
     coordinates: [BASE_COORDINATES.lng + 0.005, BASE_COORDINATES.lat - 0.001],
   },
@@ -56,7 +57,7 @@ const dropOffLocations = [
   },
   {
     name: "Textile Reclaim Center",
-    itemType: "fabrics",
+    itemType: "fabric",
     description: "Specialized in fabric and textile recycling",
     address: "8 Old GRA, Port Harcourt",
     coordinates: [BASE_COORDINATES.lng - 0.006, BASE_COORDINATES.lat + 0.005],
@@ -77,7 +78,7 @@ const dropOffLocations = [
   },
   {
     name: "Fabric Upcycling Workshop",
-    itemType: "fabrics",
+    itemType: "fabric",
     description: "Drop-off point with upcycling workshops",
     address: "18 Woji Road, Port Harcourt",
     coordinates: [BASE_COORDINATES.lng + 0.011, BASE_COORDINATES.lat + 0.006],
@@ -88,6 +89,50 @@ const dropOffLocations = [
     description: "Multi-material recycling center with focus on plastics",
     address: "25 Rumuola Road, Port Harcourt",
     coordinates: [BASE_COORDINATES.lng - 0.005, BASE_COORDINATES.lat + 0.007],
+  },
+
+  // New locations with different material types
+  {
+    name: "Glass Recycling Center",
+    itemType: "glass",
+    description: "Specialized center for glass bottle and container recycling",
+    address: "7 Olu Obasanjo Road, Port Harcourt",
+    coordinates: [BASE_COORDINATES.lng + 0.004, BASE_COORDINATES.lat + 0.008],
+  },
+  {
+    name: "Metal Scrap Collection",
+    itemType: "metal",
+    description: "Collection point for metal scraps and recyclables",
+    address: "14 Diobu Area, Port Harcourt",
+    coordinates: [BASE_COORDINATES.lng - 0.007, BASE_COORDINATES.lat - 0.006],
+  },
+  {
+    name: "E-Waste Drop-Off",
+    itemType: "e-waste",
+    description: "Safe disposal and recycling of electronic waste",
+    address: "9 Garrison Junction, Port Harcourt",
+    coordinates: [BASE_COORDINATES.lng + 0.006, BASE_COORDINATES.lat - 0.005],
+  },
+  {
+    name: "Paper Recycling Hub",
+    itemType: "paper",
+    description: "Collection center for paper, cardboard, and books",
+    address: "20 Mile 4, Port Harcourt",
+    coordinates: [BASE_COORDINATES.lng - 0.009, BASE_COORDINATES.lat + 0.003],
+  },
+  {
+    name: "Battery Collection Point",
+    itemType: "batteries",
+    description: "Safe disposal of used batteries of all types",
+    address: "11 Rumuokoro, Port Harcourt",
+    coordinates: [BASE_COORDINATES.lng + 0.008, BASE_COORDINATES.lat - 0.007],
+  },
+  {
+    name: "Hazardous Waste Facility",
+    itemType: "hazardous",
+    description: "Proper disposal of household hazardous waste",
+    address: "30 Choba Road, Port Harcourt",
+    coordinates: [BASE_COORDINATES.lng - 0.01, BASE_COORDINATES.lat + 0.009],
   },
 ];
 

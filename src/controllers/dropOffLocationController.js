@@ -108,7 +108,7 @@ exports.getNearestDropOffLocations = async (req, res) => {
       .json({ message: "Latitude and longitude are required" });
   }
 
-  const query = {};
+  let query = {};
 
   if (itemType) {
     console.log(itemType);
@@ -124,8 +124,7 @@ exports.getNearestDropOffLocations = async (req, res) => {
         message: "All drop off locations fetched successfully",
       });
     }
-
-    const dropOffLocations = await DropOffLocation.find({
+    query = {
       location: {
         $near: {
           $geometry: {
@@ -135,7 +134,26 @@ exports.getNearestDropOffLocations = async (req, res) => {
           $maxDistance: distance,
         },
       },
-      itemType: itemType,
+      itemType: itemType ? itemType.toLowerCase() : undefined,
+    };
+    if (itemType.toLowerCase() === "others") {
+      query = {
+        location: {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: [longitude, latitude],
+            },
+            $maxDistance: distance,
+          },
+        },
+        itemtype: {
+          $nin: ["food", "plastic", "clothing"],
+        },
+      };
+    }
+    const dropOffLocations = await DropOffLocation.find(query).catch((e) => {
+      console.log(e);
     });
 
     res.status(200).json({
@@ -143,6 +161,7 @@ exports.getNearestDropOffLocations = async (req, res) => {
       message: "Nearest drop off locations fetched successfully",
     });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: err.message });
   }
 };

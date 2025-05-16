@@ -10,6 +10,7 @@ const MaterialSchema = mongoose.Schema(
         "glass",
         "paper",
         "metal",
+        "food",
         "organic",
         "fabric",
         "eWaste",

@@ -5,11 +5,14 @@ const Campaign = require("../models/campaignModel");
 const mongoose = require("mongoose");
 const { catchAsync } = require("../utility/catchAsync.js");
 const cuCalculationService = require("../service/cuCalculationService");
+const User = require("../models/userModel.js");
 
 // add new drop off
 exports.addDropOff = async (req, res) => {
   const { location, itemType, itemQuantity, description, campaignId } =
     req.body;
+
+  console.log("REQ BODY", req.body);
 
   const findDropOffLocation = await DropOffLocation.findById(location);
 
@@ -50,13 +53,53 @@ exports.addDropOff = async (req, res) => {
       };
     }
 
+    // After creating the drop-off, update the user's CU
+    let materialCategory = itemType;
+
+    const cu = await cuCalculationService
+      .updateUserCU(req.user._id, materialCategory, itemQuantity)
+      .then((cu) => {
+        let totalCu = cu.newTotalCU;
+
+        //append natpoints
+        cuCalculationService.updateUserNatPoints(req.user._id, totalCu);
+
+        return totalCu;
+      })
+      .catch((err) => {
+        console.log(err, "Error in CU Logic");
+        return null;
+      });
+    if (!cu) {
+      console.log("NO CU");
+    } else {
+      console.log("CU updated successfully");
+    }
+
+    dropOff.pointsEarned = cu;
+
     await dropOff.save();
+    //update user item count
+
+    // After updating the user's CU
+    req.user.cu = req.user.cu + cu;
+
+    // Update the user's item count based on the item type
+    const user = await User.findById(req.user._id);
+    if (user && user.itemsCount && itemType in user.itemsCount) {
+      user.itemsCount[itemType] += itemQuantity;
+      await user.save();
+      console.log(
+        `Updated user's ${itemType} count to ${user.itemsCount[itemType]}`
+      );
+    }
 
     res.status(201).json({
       message: "Drop off request added successfully",
       data: dropOff,
     });
   } catch (err) {
+    console.log(err);
     res.status(400).json({ message: err.message });
   }
 };
@@ -80,6 +123,12 @@ exports.getDropOffs = async (req, res) => {
       page,
       limit,
       sort: { createdAt: -1 },
+      populate: [
+        {
+          path: "dropOffLocation",
+          select: "name address ",
+        },
+      ],
     });
 
     res.status(200).json({
@@ -214,42 +263,6 @@ exports.createDropOff = catchAsync(async (req, res) => {
 
     await dropOff.save();
 
-    // After creating the drop-off, update the user's CU
-    if (dropOff) {
-      try {
-        // Calculate and update CU for each material type in the drop-off
-        const cuUpdates = await Promise.all(
-          Object.entries(newDropOff.items).map(async ([category, quantity]) => {
-            if (quantity > 0) {
-              return cuCalculationService.updateUserCU(
-                req.user._id,
-                category,
-                quantity
-              );
-            }
-            return null;
-          })
-        );
-
-        // Filter out null results and get total CU added
-        const validCuUpdates = cuUpdates.filter((update) => update !== null);
-        const totalCUAdded = validCuUpdates.reduce(
-          (sum, update) => sum + update.addedCU,
-          0
-        );
-
-        // Include CU information in the response
-        responseData.cuAdded = totalCUAdded;
-        responseData.newTotalCU =
-          validCuUpdates.length > 0
-            ? validCuUpdates[validCuUpdates.length - 1].newTotalCU
-            : req.user.carbonUnits;
-      } catch (error) {
-        console.error("Error calculating CU for drop-off:", error);
-        // Continue with the response even if CU calculation fails
-      }
-    }
-
     res.status(201).json({
       message: "Drop off request added successfully",
       data: dropOff,
@@ -262,4 +275,30 @@ exports.createDropOff = catchAsync(async (req, res) => {
   //   status: "success",
   //   data: responseData,
   // });
+});
+
+exports.getUserDropOffs = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+  const { page = 1, limit = 10 } = req.query;
+
+  // Get all drop offs for the user
+  const dropOffs = await DropOff.paginate(
+    { user: userId },
+    {
+      page,
+      limit,
+      sort: { createdAt: -1 },
+      populate: [
+        {
+          path: "dropOffLocation",
+          select: "name address ",
+        },
+      ],
+    }
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: dropOffs,
+  });
 });
