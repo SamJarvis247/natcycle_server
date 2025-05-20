@@ -1,3 +1,6 @@
+// Add this near the top of your file
+const cronScheduler = require("./src/cron");
+
 const app = require("./src/app");
 // const RedisService = require('./src/service/redis.service.js')
 const mongoose = require("mongoose");
@@ -34,3 +37,5 @@ const port = process.env.PORT || "5000";
 app.listen(port, () => {
   console.log("App running on port 5000...");
 });
+
+// This will automatically start the scheduler
