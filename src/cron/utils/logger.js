@@ -1,29 +1,49 @@
-const winston = require("winston");
+/**
+ * Simple console-based logger with emoji indicators
+ */
 
-const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.printf(({ level, message, timestamp }) => {
-      return `${timestamp} ${level.toUpperCase()}: ${message}`;
-    })
-  ),
-  transports: [
-    new winston.transports.File({
-      filename: "logs/cron-error.log",
-      level: "error",
-    }),
-    new winston.transports.File({ filename: "logs/cron.log" }),
-  ],
-});
+const logger = {
+  /**
+   * Log informational messages
+   * @param {string} message - The message to log
+   */
+  info: (message) => {
+    console.log(`ℹ️ INFO: ${message}`);
+  },
 
-// Add console transport only in development
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.simple(),
-    })
-  );
-}
+  /**
+   * Log error messages
+   * @param {string} message - The error message to log
+   */
+  error: (message) => {
+    console.error(`❌ ERROR: ${message}`);
+  },
+
+  /**
+   * Log warning messages
+   * @param {string} message - The warning message to log
+   */
+  warn: (message) => {
+    console.warn(`⚠️ WARNING: ${message}`);
+  },
+
+  /**
+   * Log success messages
+   * @param {string} message - The success message to log
+   */
+  success: (message) => {
+    console.log(`✅ SUCCESS: ${message}`);
+  },
+
+  /**
+   * Log debug messages (only in non-production environments)
+   * @param {string} message - The debug message to log
+   */
+  debug: (message) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`🔍 DEBUG: ${message}`);
+    }
+  },
+};
 
 module.exports = logger;
