@@ -208,7 +208,6 @@ exports.adminGetDropOffs = async (req, res) => {
       page,
       limit,
       sort: { createdAt: -1 },
-      populate: ["user", "dropOffLocation"],
     });
 
     res.status(200).json({

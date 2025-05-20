@@ -109,136 +109,8 @@ async function getItemsToSwipe(
     let itemsToSwipe = [];
     console.log(testing, "TESTING");
 
-    // Check if we're in testing mode first
-    const isTestingMode = testing;
-
-    if (isTestingMode) {
-      console.log("Testing mode enabled - bypassing all cache operations");
-      // Delete all caches for testing mode
-      await RedisService.flushAll();
-      console.log("All caches cleared for testing mode");
-
-      // Find all available items not created by the current user
-      const today = new Date();
-      const oneMonthAgo = new Date(today);
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-      const user = await ThingsMatchUser.findById(thingsMatchUserId);
-      if (!user) {
-        return {
-          message: "User not found",
-          items: [],
-        };
-      }
-      const userInterests = user.interests;
-      console.log(userInterests, "userInterests");
-
-      let fetchItemQuery = {
-        userId: { $ne: thingsMatchUserId.toString() },
-        status: "available",
-        createdAt: { $gte: oneMonthAgo },
-      };
-
-      if (notInInterest === true) {
-        // No category filter needed - show all items
-      } else if (notInInterest === false) {
-        fetchItemQuery.category = { $nin: userInterests };
-      }
-
-      if (coordinates && coordinates.length === 2) {
-        console.log("Testing mode - not doing any geocoding");
-        // No geocoding in testing mode
-      }
-
-      console.log("🚀 ~ getItemsToSwipe ~ fetchItemQuery:", fetchItemQuery);
-
-      const items = await Item.find(fetchItemQuery);
-      console.log("🚀 ~ getItemsToSwipe ~ items:", items.length);
-
-      if (!items || items.length === 0) {
-        return {
-          message: "No items available to swipe",
-          items: [],
-        };
-      }
-
-      // Get user's existing swipes
-      const swipes = await Swipe.find({ userId: thingsMatchUserId });
-
-      if (!swipes || swipes.length === 0) {
-        console.log("User has no swipes - sending all items.");
-        console.log(
-          itemsToSwipe.length,
-          items.length,
-          swipes,
-          "IMPORTAND CREDENTIALS"
-        );
-        return {
-          message: "All items available to swipe, user has no swipes.",
-          items: items,
-        };
-      }
-
-      const swipedItemIds = new Set(
-        swipes.map((swipe) => swipe.itemId.toString())
-      );
-
-      itemsToSwipe = items.filter(
-        (item) => !swipedItemIds.has(item._id.toString())
-      );
-      console.log(itemsToSwipe.length, swipes, "IMPORTAND CREDENTIALS");
-
-      if (itemsToSwipe.length === 0) {
-        return {
-          message: "You've seen all available items",
-          items: [],
-        };
-      }
-
-      return {
-        message: "Items available to swipe (testing mode)",
-        items: itemsToSwipe,
-      };
-    }
-
-    // Normal non-testing flow continues here
-    const lastUpdated = await RedisService.get(CACHE_KEYS.ITEMS_LAST_UPDATED);
-    const userCacheTimestamp = await RedisService.get(
-      CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId)
-    );
-
-    // Generate a unique cache key that includes location parameters if provided
-    const locationCacheKey = coordinates
-      ? `${CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId)}_loc_${
-          coordinates[0]
-        }_${coordinates[1]}_${maxDistance}`
-      : CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId);
-
-    // Try to get items from cache first
-    const cachedItems = await RedisService.get(locationCacheKey);
-
-    // If we have cached items but they might be stale, check timestamp
-    console.log("Testing is false, checking cache validity");
-    if (cachedItems && cachedItems.length > 0) {
-      // If no timestamp for this user's cache or it's older than last update, invalidate cache
-      if (
-        !userCacheTimestamp ||
-        (lastUpdated && parseInt(lastUpdated) > parseInt(userCacheTimestamp))
-      ) {
-        console.log(
-          `Cache for user ${thingsMatchUserId} is stale, refreshing data...`
-        );
-        await RedisService.del(locationCacheKey);
-      } else {
-        console.log(
-          `Retrieved ${cachedItems.length} items from cache for user ${thingsMatchUserId}`
-        );
-        return {
-          message: "Items available to swipe (from cache)",
-          items: cachedItems,
-        };
-      }
-    }
+    // Since Redis is disabled, we'll use the same approach as testing mode
+    console.log("Redis disabled - using direct database queries");
 
     // Find all available items not created by the current user
     const today = new Date();
@@ -267,27 +139,22 @@ async function getItemsToSwipe(
       fetchItemQuery.category = { $nin: userInterests };
     }
 
-    if (coordinates && coordinates.length === 2) {
-      if (!testing) {
-        fetchItemQuery["location"] = {
-          $near: {
-            $geometry: {
-              type: "Point",
-              coordinates: [coordinates[0], coordinates[1]], // [longitude, latitude]
-            },
-            $maxDistance: maxDistance,
+    if (coordinates && coordinates.length === 2 && !testing) {
+      fetchItemQuery["location"] = {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [coordinates[0], coordinates[1]], // [longitude, latitude]
           },
-        };
-      } else {
-        //dont do any geocoding, just return all items in the db
-        console.log("testing is true, not doing any geocoding");
-      }
+          $maxDistance: maxDistance,
+        },
+      };
     }
 
     console.log("🚀 ~ getItemsToSwipe ~ fetchItemQuery:", fetchItemQuery);
 
     const items = await Item.find(fetchItemQuery);
-    console.log("🚀 ~ getItemsToSwipe ~ items:", items);
+    console.log("🚀 ~ getItemsToSwipe ~ items:", items.length);
 
     if (!items || items.length === 0) {
       return {
@@ -300,20 +167,9 @@ async function getItemsToSwipe(
     const swipes = await Swipe.find({ userId: thingsMatchUserId });
 
     if (!swipes || swipes.length === 0) {
-      const now = Date.now();
-      await RedisService.set(locationCacheKey, items, 3600);
-      await RedisService.set(
-        CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
-        now,
-        3600
-      );
-
-      console.log(
-        `Cached ${items.length} items for new user ${thingsMatchUserId}`
-      );
-
+      console.log("User has no swipes - sending all items.");
       return {
-        message: "All items available to swipe",
+        message: "All items available to swipe, user has no swipes.",
         items: items,
       };
     }
@@ -333,24 +189,12 @@ async function getItemsToSwipe(
       };
     }
 
-    const now = Date.now();
-    await RedisService.set(locationCacheKey, itemsToSwipe, 3600);
-    await RedisService.set(
-      CACHE_KEYS.USER_CACHE_TIMESTAMP(thingsMatchUserId),
-      now,
-      3600
-    );
-
-    console.log(
-      `Cached ${itemsToSwipe.length} filtered items for user ${thingsMatchUserId}`
-    );
-
     return {
-      message: "Items available to swipe",
+      message: "Items available to swipe (Redis disabled)",
       items: itemsToSwipe,
     };
   } catch (error) {
-    console.error("Error getting items to swipe:", error);
+    console.error("Error in getItemsToSwipe:", error);
     throw new Error("Failed to get items to swipe");
   }
 }
@@ -369,15 +213,15 @@ async function getItemById(itemId) {
       };
     }
 
-    const cachedItem = await RedisService.get(CACHE_KEYS.ITEM_DETAIL(itemId));
+    // const cachedItem = await RedisService.get(CACHE_KEYS.ITEM_DETAIL(itemId));
 
-    if (cachedItem) {
-      console.log(`Retrieved item ${itemId} from cache`);
-      return {
-        message: "Item retrieved successfully (from cache)",
-        item: cachedItem,
-      };
-    }
+    // if (cachedItem) {
+    //   console.log(`Retrieved item ${itemId} from cache`);
+    //   return {
+    //     message: "Item retrieved successfully (from cache)",
+    //     item: cachedItem,
+    //   };
+    // }
 
     const item = await Item.findById(itemId);
 
@@ -388,9 +232,9 @@ async function getItemById(itemId) {
       };
     }
 
-    await RedisService.set(CACHE_KEYS.ITEM_DETAIL(itemId), item);
+    // await RedisService.set(CACHE_KEYS.ITEM_DETAIL(itemId), item);
 
-    console.log(`Cached item ${itemId}`);
+    // console.log(`Cached item ${itemId}`);
 
     return {
       message: "Item retrieved successfully",
@@ -405,21 +249,21 @@ async function getItemById(itemId) {
 //swipe functions
 async function swipeDislike(itemId, thingsMatchUserId) {
   try {
-    // Try to get item from cache first
-    const cachedItem = await RedisService.get(CACHE_KEYS.ITEM_DETAIL(itemId));
-    let item;
+    // // Try to get item from cache first
+    // const cachedItem = await RedisService.get(CACHE_KEYS.ITEM_DETAIL(itemId));
+    // let item;
 
-    if (cachedItem) {
-      console.log(`Retrieved item ${itemId} from cache for dislike action`);
-      item = cachedItem;
-    } else {
-      item = await Item.findById(itemId);
-      if (item) {
-        // Cache the item for future use
-        await RedisService.set(CACHE_KEYS.ITEM_DETAIL(itemId), item);
-        console.log(`Cached item ${itemId} during dislike action`);
-      }
-    }
+    // if (cachedItem) {
+    //   console.log(`Retrieved item ${itemId} from cache for dislike action`);
+    //   item = cachedItem;
+    // } else {
+    //   item = await Item.findById(itemId);
+    //   if (item) {
+    //     // Cache the item for future use
+    //     await RedisService.set(CACHE_KEYS.ITEM_DETAIL(itemId), item);
+    //     console.log(`Cached item ${itemId} during dislike action`);
+    //   }
+    // }
 
     if (!item) {
       return {
@@ -430,25 +274,12 @@ async function swipeDislike(itemId, thingsMatchUserId) {
 
     // Check if user has already swiped on this item
     // Try to get swipe history from cache
-    const cachedSwipes = await RedisService.get(
-      CACHE_KEYS.USER_SWIPES(thingsMatchUserId)
-    );
+    // const cachedSwipes = await RedisService.get(
+    //   CACHE_KEYS.USER_SWIPES(thingsMatchUserId)
+    // );
     let userSwipes;
 
-    if (cachedSwipes) {
-      console.log(
-        `Retrieved swipe history for user ${thingsMatchUserId} from cache`
-      );
-      userSwipes = cachedSwipes;
-    } else {
-      userSwipes = await Swipe.find({ userId: thingsMatchUserId });
-      // Cache the user's swipe history
-      await RedisService.set(
-        CACHE_KEYS.USER_SWIPES(thingsMatchUserId),
-        userSwipes
-      );
-      console.log(`Cached swipe history for user ${thingsMatchUserId}`);
-    }
+    userSwipes = await Swipe.find({ userId: thingsMatchUserId });
 
     if (
       userSwipes &&
@@ -463,30 +294,18 @@ async function swipeDislike(itemId, thingsMatchUserId) {
     //check if item in users interest
     const itemCategory = item.category;
 
-    // Try to get user from cache or database
-    const cachedUser = await RedisService.get(
-      CACHE_KEYS.USER_PROFILE(thingsMatchUserId)
-    );
     let userInterests;
 
-    if (cachedUser) {
-      console.log(`Retrieved user ${thingsMatchUserId} from cache`);
-      userInterests = cachedUser.interests;
-    } else {
-      const user = await ThingsMatchUser.findById(thingsMatchUserId).select(
-        "interests"
-      );
-      if (!user) {
-        return {
-          message: "User not found",
-          item: null,
-        };
-      }
-      userInterests = user.interests;
-      // Cache the user profile
-      await RedisService.set(CACHE_KEYS.USER_PROFILE(thingsMatchUserId), user);
-      console.log(`Cached user ${thingsMatchUserId} profile`);
+    const user = await ThingsMatchUser.findById(thingsMatchUserId).select(
+      "interests"
+    );
+    if (!user) {
+      return {
+        message: "User not found",
+        item: null,
+      };
     }
+    userInterests = user.interests;
 
     const returnMessage = {};
     if (!userInterests.includes(itemCategory)) {
@@ -502,25 +321,6 @@ async function swipeDislike(itemId, thingsMatchUserId) {
     const swipe = new Swipe(swapObject);
     await swipe.save();
 
-    // Update swipe cache
-    if (cachedSwipes) {
-      cachedSwipes.push(swipe);
-      await RedisService.set(
-        CACHE_KEYS.USER_SWIPES(thingsMatchUserId),
-        cachedSwipes
-      );
-      console.log(`Updated swipe cache for user ${thingsMatchUserId}`);
-    } else {
-      await RedisService.del(CACHE_KEYS.USER_SWIPES(thingsMatchUserId));
-    }
-
-    // Invalidate the items to swipe cache since available items have changed
-    await RedisService.del(CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId));
-    await RedisService.set(CACHE_KEYS.ITEMS_LAST_UPDATED, Date.now());
-    console.log(
-      `Invalidated items to swipe cache for user ${thingsMatchUserId} after dislike`
-    );
-
     return {
       message: "Item swiped successfully as Dislike.",
       item: item,
@@ -533,21 +333,9 @@ async function swipeDislike(itemId, thingsMatchUserId) {
 
 async function swipeLike(itemId, thingsMatchUserId) {
   try {
-    // Try to get item from cache first
-    const cachedItem = await RedisService.get(CACHE_KEYS.ITEM_DETAIL(itemId));
     let item;
 
-    if (cachedItem) {
-      console.log(`Retrieved item ${itemId} from cache for like action`);
-      item = cachedItem;
-    } else {
-      item = await Item.findById(itemId);
-      if (item) {
-        // Cache the item for future use
-        await RedisService.set(CACHE_KEYS.ITEM_DETAIL(itemId), item);
-        console.log(`Cached item ${itemId} during like action`);
-      }
-    }
+    item = await Item.findById(itemId);
 
     if (!item) {
       return {
@@ -557,26 +345,9 @@ async function swipeLike(itemId, thingsMatchUserId) {
     }
 
     // Check if user has already swiped on this item
-    // Try to get swipe history from cache
-    const cachedSwipes = await RedisService.get(
-      CACHE_KEYS.USER_SWIPES(thingsMatchUserId)
-    );
     let userSwipes;
 
-    if (cachedSwipes) {
-      console.log(
-        `Retrieved swipe history for user ${thingsMatchUserId} from cache`
-      );
-      userSwipes = cachedSwipes;
-    } else {
-      userSwipes = await Swipe.find({ userId: thingsMatchUserId });
-      // Cache the user's swipe history
-      await RedisService.set(
-        CACHE_KEYS.USER_SWIPES(thingsMatchUserId),
-        userSwipes
-      );
-      console.log(`Cached swipe history for user ${thingsMatchUserId}`);
-    }
+    userSwipes = await Swipe.find({ userId: thingsMatchUserId });
 
     if (
       userSwipes &&
@@ -591,30 +362,18 @@ async function swipeLike(itemId, thingsMatchUserId) {
     //check if item in users interest
     const itemCategory = item.category;
 
-    // Try to get user from cache or database
-    const cachedUser = await RedisService.get(
-      CACHE_KEYS.USER_PROFILE(thingsMatchUserId)
-    );
     let userInterests;
 
-    if (cachedUser) {
-      console.log(`Retrieved user ${thingsMatchUserId} from cache`);
-      userInterests = cachedUser.interests;
-    } else {
-      const user = await ThingsMatchUser.findById(thingsMatchUserId).select(
-        "interests"
-      );
-      if (!user) {
-        return {
-          message: "User not found",
-          item: null,
-        };
-      }
-      userInterests = user.interests;
-      // Cache the user profile
-      await RedisService.set(CACHE_KEYS.USER_PROFILE(thingsMatchUserId), user);
-      console.log(`Cached user ${thingsMatchUserId} profile`);
+    const user = await ThingsMatchUser.findById(thingsMatchUserId).select(
+      "interests"
+    );
+    if (!user) {
+      return {
+        message: "User not found",
+        item: null,
+      };
     }
+    userInterests = user.interests;
 
     let returnMessage = {};
     if (!userInterests.includes(itemCategory)) {
@@ -629,41 +388,6 @@ async function swipeLike(itemId, thingsMatchUserId) {
     };
     const swipe = new Swipe(swapObject);
     await swipe.save();
-
-    // Update swipe cache
-    if (cachedSwipes) {
-      cachedSwipes.push(swipe);
-      await RedisService.set(
-        CACHE_KEYS.USER_SWIPES(thingsMatchUserId),
-        cachedSwipes
-      );
-      console.log(`Updated swipe cache for user ${thingsMatchUserId}`);
-    } else {
-      await RedisService.del(CACHE_KEYS.USER_SWIPES(thingsMatchUserId));
-    }
-
-    // Update liked items cache
-    const cachedLikedItems = await RedisService.get(
-      CACHE_KEYS.USER_LIKED_ITEMS(thingsMatchUserId)
-    );
-    if (cachedLikedItems) {
-      cachedLikedItems.push(item);
-      await RedisService.set(
-        CACHE_KEYS.USER_LIKED_ITEMS(thingsMatchUserId),
-        cachedLikedItems
-      );
-    } else {
-      await RedisService.set(CACHE_KEYS.USER_LIKED_ITEMS(thingsMatchUserId), [
-        item,
-      ]);
-    }
-
-    // Invalidate the items to swipe cache since available items have changed
-    await RedisService.del(CACHE_KEYS.USER_AVAILABLE_ITEMS(thingsMatchUserId));
-    await RedisService.set(CACHE_KEYS.ITEMS_LAST_UPDATED, Date.now());
-    console.log(
-      `Invalidated items to swipe cache for user ${thingsMatchUserId} after like`
-    );
 
     returnMessage.message = "Item swiped successfully";
     returnMessage.item = item.id;
@@ -681,17 +405,6 @@ async function swipeLike(itemId, thingsMatchUserId) {
 //get all created Items and Like Swipes
 async function getCreatedItems(thingsMatchUserId) {
   try {
-    // Try to get created items from cache first
-    const cacheKey = CACHE_KEYS.USER_CREATED_ITEMS(thingsMatchUserId);
-    const cachedItems = await RedisService.get(cacheKey);
-
-    if (cachedItems) {
-      console.log(
-        `Retrieved created items for user ${thingsMatchUserId} from cache`
-      );
-      return cachedItems;
-    }
-
     // If not in cache, fetch from database
     const createdItems = await Item.find({
       userId: thingsMatchUserId.toString(),
@@ -720,10 +433,6 @@ async function getCreatedItems(thingsMatchUserId) {
       items: createdItems,
       likedItems: likedSwipes.length > 0 ? likedSwipes : [],
     };
-
-    // Cache the result for future requests
-    await RedisService.set(cacheKey, message, 3600); // Cache for 1 hour
-    console.log(`Cached created items for user ${thingsMatchUserId}`);
 
     return message;
   } catch (error) {
