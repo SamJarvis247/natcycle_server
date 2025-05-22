@@ -32,6 +32,11 @@ const MaterialSchema = mongoose.Schema(
       required: true,
       default: 0,
     },
+    natPoint: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
     image: {
       public_id: {
         type: String,

@@ -14,6 +14,8 @@ const dropOffSchema = new mongoose.Schema(
       required: true,
     },
     itemType: {
+      //ensure this follows the materials table
+      //TODO
       type: String,
       required: true,
       trim: true,
@@ -48,6 +50,7 @@ const dropOffSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
+      enum: ["Pending", "Approved"],
       default: "Pending",
     },
     campaign: {

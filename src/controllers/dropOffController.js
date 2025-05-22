@@ -208,6 +208,16 @@ exports.adminGetDropOffs = async (req, res) => {
       page,
       limit,
       sort: { createdAt: -1 },
+      populate: [
+        {
+          path: "user",
+          select: "firstName lastName",
+        },
+        {
+          path: "dropOffLocation",
+          select: "name address",
+        },
+      ],
     });
 
     res.status(200).json({
@@ -299,5 +309,49 @@ exports.getUserDropOffs = catchAsync(async (req, res) => {
   res.status(200).json({
     status: "success",
     data: dropOffs,
+  });
+});
+
+exports.adminApproveDropOff = catchAsync(async (req, res) => {
+  const dropOffId = req.params.id;
+
+  if (!mongoose.Types.ObjectId.isValid(dropOffId)) {
+    return res.status(404).json({ message: "Invalid drop off ID" });
+  }
+
+  const dropOff = await DropOff.findById(dropOffId);
+
+  if (!dropOff) {
+    return res.status(404).json({ message: "Drop off not found" });
+  }
+
+  // Update status to approved
+  dropOff.status = "Approved";
+
+  await dropOff.save();
+
+  // Update user's CU and NatPoints if not already calculated
+  if (!dropOff.pointsEarned) {
+    const cu = await cuCalculationService
+      .updateUserCU(dropOff.user, dropOff.itemType, dropOff.itemQuantity)
+      .then((cu) => {
+        cuCalculationService.updateUserNatPoints(dropOff.user, cu.newTotalCU);
+        return cu.newTotalCU;
+      })
+      .catch((err) => {
+        console.log("Error calculating CU:", err);
+        return null;
+      });
+
+    if (cu) {
+      dropOff.pointsEarned = cu;
+      await dropOff.save();
+    }
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Drop off approved successfully",
+    data: dropOff,
   });
 });

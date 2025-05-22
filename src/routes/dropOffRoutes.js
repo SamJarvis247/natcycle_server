@@ -11,6 +11,7 @@ const {
   updateDropOffStatus,
   adminGetDropOffs,
   getUserDropOffs,
+  adminApproveDropOff,
 } = require("../controllers/dropOffController");
 
 const { isAuth, isAdmin } = require("../middleware/authMiddleware");
@@ -24,6 +25,7 @@ router.get("/admin", isAuth, isAdmin, adminGetDropOffs);
 router.get("/", isAuth, isAdmin, getDropOffs);
 
 router.get("/user/:userId", isAuth, getUserDropOffs);
+router.get("/approve/:id", isAuth, isAdmin, adminApproveDropOff);
 
 router
   .route("/:id")
@@ -31,3 +33,5 @@ router
   .put(isAuth, updateDropOffStatus);
 
 module.exports = router;
+//weight to pounds
+//approve logic and verifica
