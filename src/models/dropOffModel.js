@@ -14,11 +14,9 @@ const dropOffSchema = new mongoose.Schema(
       required: true,
     },
     itemType: {
-      //ensure this follows the materials table
-      //TODO
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Material",
       required: true,
-      trim: true,
     },
     itemQuantity: {
       type: Number,

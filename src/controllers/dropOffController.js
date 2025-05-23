@@ -330,24 +330,24 @@ exports.adminApproveDropOff = catchAsync(async (req, res) => {
 
   await dropOff.save();
 
-  // Update user's CU and NatPoints if not already calculated
-  if (!dropOff.pointsEarned) {
-    const cu = await cuCalculationService
-      .updateUserCU(dropOff.user, dropOff.itemType, dropOff.itemQuantity)
-      .then((cu) => {
-        cuCalculationService.updateUserNatPoints(dropOff.user, cu.newTotalCU);
-        return cu.newTotalCU;
-      })
-      .catch((err) => {
-        console.log("Error calculating CU:", err);
-        return null;
-      });
+  // // Update user's CU and NatPoints if not already calculated
+  // if (!dropOff.pointsEarned) {
+  //   const cu = await cuCalculationService
+  //     .updateUserCU(dropOff.user, dropOff.itemType, dropOff.itemQuantity)
+  //     .then((cu) => {
+  //       cuCalculationService.updateUserNatPoints(dropOff.user, cu.newTotalCU);
+  //       return cu.newTotalCU;
+  //     })
+  //     .catch((err) => {
+  //       console.log("Error calculating CU:", err);
+  //       return null;
+  //     });
 
-    if (cu) {
-      dropOff.pointsEarned = cu;
-      await dropOff.save();
-    }
-  }
+  //   if (cu) {
+  //     dropOff.pointsEarned = cu;
+  //     await dropOff.save();
+  //   }
+  // }
 
   res.status(200).json({
     status: "success",

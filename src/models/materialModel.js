@@ -32,7 +32,7 @@ const MaterialSchema = mongoose.Schema(
       required: true,
       default: 0,
     },
-    natPoint: {
+    natPoints: {
       type: Number,
       required: true,
       default: 0,
