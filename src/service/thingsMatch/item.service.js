@@ -6,6 +6,7 @@ const getCoordinates = require("../../utility/geocode.js");
 const cloudinaryUpload = require("../../config/cloudinaryUpload");
 const CACHE_KEYS = require("./cacheKeys.js");
 const mongoose = require("mongoose");
+const User = require("../../models/userModel.js");
 
 async function addItem(data, thingsMatchUserId, files) {
   try {
@@ -166,32 +167,76 @@ async function getItemsToSwipe(
     // Get user's existing swipes
     const swipes = await Swipe.find({ userId: thingsMatchUserId });
 
+    let itemsToReturn;
+
     if (!swipes || swipes.length === 0) {
       console.log("User has no swipes - sending all items.");
-      return {
-        message: "All items available to swipe, user has no swipes.",
-        items: items,
-      };
-    }
 
-    const swipedItemIds = new Set(
-      swipes.map((swipe) => swipe.itemId.toString())
-    );
+      itemsToReturn = await Promise.all(
+        items.map(async (item) => {
+          const NatUser = await User.findOne({
+            thingsMatchAccount: item.userId,
+          });
+          const itemObject = item.toObject ? item.toObject() : { ...item };
 
-    itemsToSwipe = items.filter(
-      (item) => !swipedItemIds.has(item._id.toString())
-    );
+          if (!NatUser) {
+            console.log("User not found for thingsMatchAccount:", item.userId);
+            itemObject.userData = null;
+          } else {
+            itemObject.userData = {
+              name: `${NatUser.firstName} ${NatUser.lastName}`,
+              email: NatUser.email,
+              phoneNumber: NatUser.phoneNumber,
+              profileImage: NatUser.profilePicture
+                ? NatUser.profilePicture.url
+                : null,
+              location: NatUser.location,
+            };
+          }
+          return itemObject;
+        })
+      );
+    } else {
+      const swipedItemIds = new Set(
+        swipes.map((swipe) => swipe.itemId.toString())
+      );
 
-    if (itemsToSwipe.length === 0) {
-      return {
-        message: "You've seen all available items",
-        items: [],
-      };
+      const filteredItems = items.filter(
+        (item) => !swipedItemIds.has(item._id.toString())
+      );
+
+      itemsToReturn = await Promise.all(
+        filteredItems.map(async (item) => {
+          const NatUser = await User.findOne({
+            thingsMatchAccount: item.userId,
+          });
+          const itemObject = item.toObject ? item.toObject() : { ...item };
+
+          if (!NatUser) {
+            console.log("User not found for thingsMatchAccount:", item.userId);
+            itemObject.userData = null;
+          } else {
+            itemObject.userData = {
+              name: `${NatUser.firstName} ${NatUser.lastName}`,
+              email: NatUser.email,
+              phoneNumber: NatUser.phoneNumber,
+              profileImage: NatUser.profilePicture
+                ? NatUser.profilePicture.url
+                : null,
+              location: NatUser.location,
+            };
+          }
+          return itemObject;
+        })
+      );
     }
 
     return {
-      message: "Items available to swipe (Redis disabled)",
-      items: itemsToSwipe,
+      message:
+        itemsToReturn.length > 0
+          ? "Items to swipe retrieved successfully."
+          : "No new items to swipe.",
+      items: itemsToReturn,
     };
   } catch (error) {
     console.error("Error in getItemsToSwipe:", error);
