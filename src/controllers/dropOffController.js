@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const { catchAsync } = require("../utility/catchAsync.js");
 const cuCalculationService = require("../service/cuCalculationService");
 const User = require("../models/userModel.js");
+const Material = require("../models/materialModel.js");
 
 // add new drop off
 exports.addDropOff = async (req, res) => {
@@ -15,6 +16,10 @@ exports.addDropOff = async (req, res) => {
   console.log("REQ BODY", req.body);
 
   const findDropOffLocation = await DropOffLocation.findById(location);
+  console.log(
+    "🚀 ~ exports.addDropOff= ~ findDropOffLocation:",
+    findDropOffLocation
+  );
 
   if (!findDropOffLocation) {
     return res.status(404).json({ message: "Drop off location not found" });
@@ -313,6 +318,7 @@ exports.getUserDropOffs = catchAsync(async (req, res) => {
 });
 
 exports.adminApproveDropOff = catchAsync(async (req, res) => {
+  console.log("GOT HERE");
   const dropOffId = req.params.id;
 
   if (!mongoose.Types.ObjectId.isValid(dropOffId)) {
@@ -328,7 +334,10 @@ exports.adminApproveDropOff = catchAsync(async (req, res) => {
   // Update status to approved
   dropOff.status = "Approved";
 
-  await dropOff.save();
+  await dropOff.save().catch((err) => {
+    console.log("Error updating drop off:", err);
+    return res.status(500).json({ message: "Error updating drop off" });
+  });
 
   // // Update user's CU and NatPoints if not already calculated
   // if (!dropOff.pointsEarned) {

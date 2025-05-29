@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const mongoosePaginate = require("mongoose-paginate-v2");
+const { default: materialEnum } = require("./enums/materialType");
 
 const dropOffSchema = new mongoose.Schema(
   {
@@ -14,9 +15,9 @@ const dropOffSchema = new mongoose.Schema(
       required: true,
     },
     itemType: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Material",
+      type: String,
       required: true,
+      enum: materialEnum,
     },
     itemQuantity: {
       type: Number,

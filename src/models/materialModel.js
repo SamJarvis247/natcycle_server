@@ -1,20 +1,12 @@
 const mongoose = require("mongoose");
+const { default: materialEnum } = require("./enums/materialType");
 
 const MaterialSchema = mongoose.Schema(
   {
     category: {
       type: String,
       required: true,
-      enum: [
-        "plastic",
-        "glass",
-        "paper",
-        "metal",
-        "food",
-        "organic",
-        "fabric",
-        "eWaste",
-      ],
+      enum: materialEnum,
       index: true,
     },
     name: {
