@@ -85,13 +85,7 @@ exports.isThingsMatchUser = async (req, res, next) => {
     }
 
     const authHeader = req.headers.authorization.replace(/,/g, "");
-    console.log(
-      "🚀 ~ exports.isThingsMatchUser= ~ cleaned authHeader:",
-      authHeader
-    );
-
     const tokenParts = authHeader.split(" ").filter((part) => part);
-    console.log("Token parts:", tokenParts);
 
     if (
       tokenParts.length < 2 ||
@@ -105,7 +99,6 @@ exports.isThingsMatchUser = async (req, res, next) => {
 
     // Extract the token (last item in the array)
     const token = tokenParts[tokenParts.length - 1];
-    console.log("Extracted token:", token);
 
     // Verify the token
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);

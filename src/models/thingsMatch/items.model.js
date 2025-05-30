@@ -70,7 +70,7 @@ const itemSchema = new mongoose.Schema(
     },
     discoveryStatus: {
       type: String,
-      enum: ["visible", "hidden_temporarily", "faded_out"],
+      enum: ["visible", "hidden_temporarily", "faded"],
       default: "visible",
       index: true,
     },

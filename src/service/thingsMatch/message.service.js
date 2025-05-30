@@ -10,6 +10,7 @@ async function sendMessage(
   messageType = "custom"
 ) {
   try {
+
     const match = await Match.findById(matchId);
     if (!match) throw new Error("Match not found for sending message.");
 
@@ -19,15 +20,15 @@ async function sendMessage(
       throw new Error("Cannot send message, chat is unmatched.");
 
     // Authorize sender and verify receiver
-    const isSenderOwner = match.itemOwnerId.toString() === senderId;
-    const isSenderInterested = match.interestedUserId.toString() === senderId;
+    const isSenderOwner = match.itemOwnerId?.toString() === senderId;
+    const isSenderInterested = match.itemSwiperId?.toString() === senderId;
 
     if (!isSenderOwner && !isSenderInterested) {
       throw new Error("Sender is not part of this match.");
     }
     const expectedReceiver = isSenderOwner
-      ? match.interestedUserId.toString()
-      : match.itemOwnerId.toString();
+      ? match.itemSwiperId?.toString()
+      : match.itemOwnerId?.toString();
     if (expectedReceiver !== receiverId) {
       throw new Error(
         "Message receiver does not match the other party in the match."
@@ -36,7 +37,7 @@ async function sendMessage(
 
     // If item owner sends a message in a 'pendingInterest' match, it confirms the match.
     if (isSenderOwner && match.status === "pendingInterest") {
-      match.status = "matched";
+      match.status = "active";
       match.matchedAt = new Date();
       // TODO: Notify interestedUser that the owner has responded and matched.
     }
@@ -46,7 +47,7 @@ async function sendMessage(
       senderId,
       receiverId,
       content,
-      messageType,
+      isDefaultMsg: messageType === "default",
     });
 
     await message.save();

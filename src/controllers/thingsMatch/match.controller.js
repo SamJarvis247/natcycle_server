@@ -3,11 +3,13 @@ const { catchAsync } = require("../../utility/catchAsync.js");
 const AppError = require("../../utility/appError");
 
 const swipeAndSendDefaultMessage = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
+
   const { itemId } = req.params;
   const { defaultMessageContent } = req.body;
+
 
   if (!defaultMessageContent) {
     return next(new AppError("Default message content is required.", 400));
@@ -15,7 +17,7 @@ const swipeAndSendDefaultMessage = catchAsync(async (req, res, next) => {
 
   const result = await matchService.createMatchOnSwipeAndSendDefaultMessage(
     itemId,
-    req.user.thingsMatchId,
+    req.TMID,
     defaultMessageContent
   );
   res.status(201).json({
@@ -25,13 +27,13 @@ const swipeAndSendDefaultMessage = catchAsync(async (req, res, next) => {
 });
 
 const confirmMatchByOwner = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
   const { matchId } = req.params;
   const result = await matchService.confirmMatch(
     matchId,
-    req.user.thingsMatchId
+    req.thingsMatchUser._id
   );
   res.status(200).json({
     status: "success",
@@ -40,7 +42,7 @@ const confirmMatchByOwner = catchAsync(async (req, res, next) => {
 });
 
 const updateMatchStatus = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
   const { matchId } = req.params;
@@ -53,7 +55,7 @@ const updateMatchStatus = catchAsync(async (req, res, next) => {
   const result = await matchService.updateMatchStatus(
     matchId,
     status,
-    req.user.thingsMatchId
+    req.thingsMatchUser._id
   );
   res.status(200).json({
     status: "success",
@@ -62,10 +64,10 @@ const updateMatchStatus = catchAsync(async (req, res, next) => {
 });
 
 const getUserMatches = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
-  const matches = await matchService.getUserMatches(req.user.thingsMatchId);
+  const matches = await matchService.getUserMatches(req.TMID);
   res.status(200).json({
     status: "success",
     results: matches.length,

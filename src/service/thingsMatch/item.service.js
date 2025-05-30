@@ -85,7 +85,7 @@ async function getItemsToSwipe(
       userId: { $ne: mongoose.Types.ObjectId(thingsMatchUserId) },
       status: "available",
       discoveryStatus: "visible",
-      // interestCount: { $lt: 10 },
+      interestCount: { $lt: 10 },
       // createdAt: { $gte: oneMonthAgo },
     };
 
@@ -114,7 +114,6 @@ async function getItemsToSwipe(
       const NatUser = await User.findOne({ thingsMatchAccount: ID });
 
       if (NatUser) {
-        console.log("🚀 ~ items.map ~ NatUser:", NatUser);
         itemObject.userDetails = {
           name: `${NatUser.firstName} ${NatUser.lastName}`,
           email: NatUser.email,
@@ -151,7 +150,7 @@ async function updateItemInterest(itemId, action) {
     if (item.interestCount >= 10) {
       item.discoveryStatus = "faded"; // Max interest reached, fade from general discovery
     } else {
-      item.discoveryStatus = "active"; // If interest drops below max, make active again
+      item.discoveryStatus = "visible";
     }
 
     await item.save();
@@ -213,24 +212,115 @@ async function deleteItem(itemId, thingsMatchUserId) {
   }
 }
 
+async function getCreatedItems(thingsMatchUserId) {
+  try {
+    const items = await Item.find({ userId: thingsMatchUserId });
+    return items;
+  } catch (error) {
+    console.error("Error fetching created items:", error);
+    throw new Error("Failed to fetch created items: " + error.message);
+  }
+}
+
+async function getItemById(itemId) {
+  try {
+    const item = await Item.findById(itemId);
+    if (!item) throw new Error("Item not found");
+
+    const itemObject = item.toObject();
+    const ID = itemObject.userId;
+    const NatUser = await User.findOne({ thingsMatchAccount: ID });
+
+    if (NatUser) {
+      itemObject.creatorDetails = {
+        name: `${NatUser.firstName} ${NatUser.lastName}`,
+        email: NatUser.email,
+        profilePicture: NatUser.profilePicture?.url || null,
+      };
+    } else {
+      itemObject.creatorDetails = {
+        name: "Unknown User",
+        email: null,
+        profilePicture: null,
+      };
+    }
+
+    return itemObject;
+  } catch (error) {
+    console.error(`Error fetching item by ID ${itemId}:`, error);
+    throw new Error("Failed to fetch item details");
+  }
+}
+
+async function updateItem(itemId, data, thingsMatchUserId, files) {
+  try {
+    const item = await Item.findById(itemId);
+    if (!item) {
+      throw new Error("Item not found");
+    }
+    if (item.userId.toString() !== thingsMatchUserId.toString()) {
+      throw new Error("User not authorized to update this item");
+    }
+    const [name, description, category, address] = [data.name, data.description, data.category, data.address];
+    // if (!name || !description || !category || !address) {
+    //   throw new Error("All fields are required");
+    // }
+    let location;
+    if (address) {
+      try {
+        const geoData = await getCoordinates(address);
+        location = {
+          type: "Point",
+          coordinates: [geoData.lng, geoData.lat],
+          address: address,
+        };
+      } catch (geoError) {
+        console.error("Geocoding error:", geoError);
+        throw new Error(`Failed to geocode address: ${geoError.message}`);
+      }
+    }
+
+    name ? item.name = name : null;
+    description ? item.description = description : null;
+    category ? item.category = category : null;
+    address ? item.location = location : null;
+    item.userId = thingsMatchUserId;
+    item.discoveryStatus = "visible";
+    item.interestCount = 0;
+    if (files && files.length > 0) {
+      const imagePromises = files.map(async (file) => {
+        try {
+          const result = await cloudinaryUpload.image(file.path);
+          return { public_id: result.public_id, url: result.secure_url };
+        } catch (error) {
+          console.error("Error uploading image to Cloudinary:", error);
+          return null;
+        }
+      });
+      item.itemImages = (await Promise.all(imagePromises)).filter(
+        (img) => img !== null
+      );
+    }
+    await item.save();
+    return {
+      message: "Item updated successfully",
+      item: item.id,
+      imagesUploaded: item.itemImages.length,
+    };
+  }
+  catch (error) {
+    console.error("Error updating item:", error);
+    throw new Error("Failed to update item: " + error.message);
+  }
+}
+
 module.exports = {
   addItem,
+  updateItem,
   getItemsToSwipe,
   updateItemInterest,
   setItemDiscoveryStatus,
   deleteItem,
-  async getItemById(itemId) {
-    // Added for completeness
-    try {
-      const item = await Item.findById(itemId).populate(
-        "userId",
-        "name profilePicture"
-      );
-      if (!item) throw new Error("Item not found");
-      return item;
-    } catch (error) {
-      console.error(`Error fetching item by ID ${itemId}:`, error);
-      throw new Error("Failed to fetch item details");
-    }
-  },
+  getCreatedItems,
+  getItemById
 };

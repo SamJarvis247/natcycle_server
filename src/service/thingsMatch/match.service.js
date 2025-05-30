@@ -15,61 +15,54 @@ async function createMatchOnSwipeAndSendDefaultMessage(
     if (!item) throw new Error("Item not found.");
 
     const itemOwnerId = item.userId._id.toString();
-    if (itemOwnerId === swiperId)
+    if (itemOwnerId === swiperId.toString())
       throw new Error("Cannot show interest in your own item.");
 
     // Check if interest already expressed by this swiper for this item
     let existingMatch = await Match.findOne({
       itemId,
       itemOwnerId,
-      interestedUserId: swiperId,
+      itemSwiperId: swiperId,
     });
 
     if (existingMatch && existingMatch.status !== "unmatched") {
-      // Allow re-interest if previously unmatched
-      // If interest exists and is active (pending/matched/blocked), don't create new, just return existing or error
-      // Depending on exact flow, might allow sending another message if already pending
+      // If a match already exists and is not 'unmatched', we cannot create a new one.
       throw new Error(
         "Interest already registered or match active for this item by you."
       );
     }
 
-    // If match was 'unmatched', we can create a new interaction or update existing one.
-    // For simplicity, let's assume a new interaction cycle starts.
     if (existingMatch && existingMatch.status === "unmatched") {
-      // Option: reuse and update status, or create new. Let's update for now.
-      existingMatch.status = "pendingInterest"; // Swiper shows interest again
-      existingMatch.lastMessageAt = new Date(); // Will be updated by message send
+      existingMatch.status = "pendingInterest";
+      existingMatch.lastMessageAt = new Date();
       await existingMatch.save();
     } else {
       existingMatch = new Match({
         itemId,
         itemOwnerId,
-        interestedUserId: swiperId,
-        status: "pendingInterest", // Swiper shows interest, owner needs to see message and respond
+        itemSwiperId: swiperId,
+        status: "pendingInterest",
       });
       await existingMatch.save();
     }
 
-    // Increment item's interest count
     await itemService.updateItemInterest(itemId, "increment");
+
 
     // Send the default message from swiper to item owner
     const message = await messageService.sendMessage(
       existingMatch._id.toString(),
-      swiperId,
+      swiperId.toString(),
       itemOwnerId,
       defaultMessageContent,
       "default"
     );
 
-    existingMatch.lastMessageAt = message.createdAt; // Ensure match has latest message timestamp
+    existingMatch.lastMessageAt = message.createdAt;
     await existingMatch.save();
 
     return {
       message: "Interest and default message sent successfully.",
-      match: existingMatch,
-      firstMessage: message,
     };
   } catch (error) {
     console.error("Error in createMatchOnSwipeAndSendDefaultMessage:", error);

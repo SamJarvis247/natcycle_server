@@ -17,7 +17,7 @@ router
 router
   .route("/:itemId")
   .get(thingsMatchItemController.getItemById)
-  // .put(upload.array("itemImages", 5), thingsMatchItemController.updateItem)
+  .put(upload.array("itemImages", 5), thingsMatchItemController.updateItem)
   .delete(thingsMatchItemController.deleteItem);
 
 router.patch(

@@ -24,6 +24,9 @@ const matchSchema = new mongoose.Schema(
       type: String,
       enum: [
         "active",
+        "unmatched",
+        "pendingInterest",
+        "blocked",
         "owner_blocked_swiper",
         "swiper_blocked_owner",
         "completed_by_owner",
@@ -31,6 +34,10 @@ const matchSchema = new mongoose.Schema(
         "archived",
       ],
       default: "active",
+    },
+    matchedAt: {
+      type: Date,
+      default: null,
     },
     // You might want to store the ID of the chat document if you create a separate chat model per match
     // chatId: {
@@ -51,6 +58,6 @@ matchSchema.index(
 matchSchema.index(
   { itemSwiperId: 1, itemOwnerId: 1, itemId: 1 },
   { unique: true }
-); // For querying from either side
+);
 
 module.exports = mongoose.model("Match", matchSchema);

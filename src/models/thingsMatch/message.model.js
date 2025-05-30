@@ -20,16 +20,15 @@ const messageSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    itemId: {
-      // Denormalized for easier access if needed, though matchId links to item
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Item",
-      required: true,
-    },
     content: {
       type: String,
       required: true,
       trim: true,
+    },
+    status: {
+      type: String,
+      enum: ["sent", "delivered", "read"],
+      default: "sent",
     },
     isDefaultMsg: {
       type: Boolean,

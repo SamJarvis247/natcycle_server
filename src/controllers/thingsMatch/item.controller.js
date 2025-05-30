@@ -52,7 +52,7 @@ const getItemById = catchAsync(async (req, res, next) => {
 });
 
 const updateItemDiscoveryStatus = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
   const { status } = req.body;
@@ -73,18 +73,34 @@ const updateItemDiscoveryStatus = catchAsync(async (req, res, next) => {
 });
 
 const deleteItem = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
-  await itemService.deleteItem(req.params.itemId, req.user.thingsMatchId);
+  await itemService.deleteItem(req.params.itemId, req.TMID);
   res.status(204).json({
     status: "success",
     data: null,
   });
 });
 
-// Placeholder for updating item details if needed (not explicitly in flow but common)
-// exports.updateItem = catchAsync(async (req, res, next) => { ... });
+
+const updateItem = catchAsync(async (req, res, next) => {
+  if (!req.TMID) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
+  }
+  const item = await itemService.updateItem(
+    req.params.itemId,
+    req.body,
+    req.TMID,
+    req.files
+  );
+  res.status(200).json({
+    status: "success",
+    data: {
+      item,
+    },
+  });
+});
 
 module.exports = {
   addItem,
@@ -92,4 +108,5 @@ module.exports = {
   getItemById,
   updateItemDiscoveryStatus,
   deleteItem,
+  updateItem,
 };
