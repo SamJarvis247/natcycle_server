@@ -88,12 +88,7 @@ const itemSchema = new mongoose.Schema(
 // Add geospatial index for location field
 itemSchema.index({ location: "2dsphere" }, { background: true });
 
-// Force index creation on model compilation
 const Item = mongoose.model("Item", itemSchema);
 
-// Ensure indexes are created
-Item.createIndexes().catch((err) => {
-  console.error("Error creating geospatial index:", err);
-});
 
 module.exports = Item;

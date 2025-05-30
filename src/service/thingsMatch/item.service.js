@@ -3,7 +3,7 @@ const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
 const getCoordinates = require("../../utility/geocode.js");
 const cloudinaryUpload = require("../../config/cloudinaryUpload");
 const mongoose = require("mongoose");
-// const User = require("../../models/userModel.js"); // Assuming ThingsMatchUser is primary for this context
+const User = require("../../models/userModel.js");
 
 async function addItem(data, thingsMatchUserId, files) {
   try {
@@ -36,7 +36,7 @@ async function addItem(data, thingsMatchUserId, files) {
       category,
       location,
       itemImages: [],
-      discoveryStatus: "active",
+      discoveryStatus: "visible",
       interestCount: 0,
     });
 
@@ -84,35 +84,53 @@ async function getItemsToSwipe(
     let fetchItemQuery = {
       userId: { $ne: mongoose.Types.ObjectId(thingsMatchUserId) },
       status: "available",
-      discoveryStatus: "active",
-      interestCount: { $lt: 10 },
+      discoveryStatus: "visible",
+      // interestCount: { $lt: 10 },
       // createdAt: { $gte: oneMonthAgo },
     };
 
-    if (coordinates && coordinates.length === 2) {
-      fetchItemQuery["location"] = {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [coordinates[0], coordinates[1]],
-          },
-          $maxDistance: maxDistance,
-        },
-      };
-    }
+    // if (coordinates && coordinates.length === 2) {
+    //   fetchItemQuery["location"] = {
+    //     $near: {
+    //       $geometry: {
+    //         type: "Point",
+    //         coordinates: [coordinates[0], coordinates[1]],
+    //       },
+    //       $maxDistance: maxDistance,
+    //     },
+    //   };
+    // }
     // Removed user.interests logic as per new flow (swiping shows all items meeting criteria)
 
-    const items = await Item.find(fetchItemQuery).populate(
-      "userId",
-      "name profilePicture"
-    );
+    const items = await Item.find(fetchItemQuery)
 
     if (!items || items.length === 0) {
       return { message: "No items available to swipe", items: [] };
     }
 
-    // Further filtering based on user's past interactions (e.g., already messaged/matched) will be handled by MatchService/MessageService logic when presenting items
-    return { items };
+    const populatedItems = await Promise.all(items.map(async (item) => {
+      const itemObject = item.toObject ? item.toObject() : { ...item };
+      let ID = itemObject.userId;
+      const NatUser = await User.findOne({ thingsMatchAccount: ID });
+
+      if (NatUser) {
+        console.log("🚀 ~ items.map ~ NatUser:", NatUser);
+        itemObject.userDetails = {
+          name: `${NatUser.firstName} ${NatUser.lastName}`,
+          email: NatUser.email,
+          profilePicture: NatUser.profilePicture?.url || null,
+        };
+      } else {
+        itemObject.userDetails = {
+          name: "Unknown User",
+          email: null,
+          profilePicture: null,
+        };
+      }
+      return itemObject;
+    }));
+
+    return { items: populatedItems };
   } catch (error) {
     console.error("Error getting items to swipe:", error);
     throw new Error("Failed to get items to swipe: " + error.message);
@@ -201,7 +219,6 @@ module.exports = {
   updateItemInterest,
   setItemDiscoveryStatus,
   deleteItem,
-  // getItemById - might be useful, ensure it exists or add if needed
   async getItemById(itemId) {
     // Added for completeness
     try {

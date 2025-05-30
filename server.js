@@ -11,11 +11,18 @@ const http = require("http");
 // import mongodb config
 const config = require("./src/config/dbConfig");
 
+//import the geospatial Models
+const Item = require("./src/models/thingsMatch/items.model");
+
 // connect to mongoDB
 mongoose
   .connect(config.uri, config.options)
   .then(async () => {
     console.log("Connected to MongoDB");
+    // Ensure indexes for Item model
+    await Item.createIndexes();
+    console.log("Item indexes ensured.");
+
     // try {
     //   await RedisService.connect()
     //   console.log('Connected to Redis')

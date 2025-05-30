@@ -1,7 +1,7 @@
 const axios = require("axios");
-const logger = require("../utils/logger");
+const logger = require("../utils/logger.js");
 
-const BASE_URL = "https://thingsmatch.onrender.com";
+const BASE_URL = "https://natcycledeployment2.onrender.com";
 let failureCount = 0;
 let isDisabled = false;
 

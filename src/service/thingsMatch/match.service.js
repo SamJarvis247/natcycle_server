@@ -1,9 +1,10 @@
 const Match = require("../../models/thingsMatch/match.model.js");
 const Item = require("../../models/thingsMatch/items.model.js");
 const itemService = require("./item.service.js");
-const messageService = require("./message.service.js");
+const messageService = require("./message.service.js"); // Will be created next
 const mongoose = require("mongoose");
 
+// Called when an ItemSwiper swipes right and sends a default message
 async function createMatchOnSwipeAndSendDefaultMessage(
   itemId,
   swiperId,
@@ -33,16 +34,19 @@ async function createMatchOnSwipeAndSendDefaultMessage(
       );
     }
 
+    // If match was 'unmatched', we can create a new interaction or update existing one.
+    // For simplicity, let's assume a new interaction cycle starts.
     if (existingMatch && existingMatch.status === "unmatched") {
-      existingMatch.status = "pendingInterest";
-      existingMatch.lastMessageAt = new Date();
+      // Option: reuse and update status, or create new. Let's update for now.
+      existingMatch.status = "pendingInterest"; // Swiper shows interest again
+      existingMatch.lastMessageAt = new Date(); // Will be updated by message send
       await existingMatch.save();
     } else {
       existingMatch = new Match({
         itemId,
         itemOwnerId,
         interestedUserId: swiperId,
-        status: "pendingInterest",
+        status: "pendingInterest", // Swiper shows interest, owner needs to see message and respond
       });
       await existingMatch.save();
     }
@@ -59,7 +63,7 @@ async function createMatchOnSwipeAndSendDefaultMessage(
       "default"
     );
 
-    existingMatch.lastMessageAt = message.createdAt;
+    existingMatch.lastMessageAt = message.createdAt; // Ensure match has latest message timestamp
     await existingMatch.save();
 
     return {
@@ -75,6 +79,7 @@ async function createMatchOnSwipeAndSendDefaultMessage(
   }
 }
 
+// Called by ItemOwner when they respond to an interest, effectively matching.
 async function confirmMatch(matchId, ownerId) {
   try {
     const match = await Match.findById(matchId);
@@ -143,7 +148,7 @@ async function getUserMatches(userId) {
   try {
     const matches = await Match.find({
       $or: [{ itemOwnerId: userId }, { interestedUserId: userId }],
-      status: { $in: ["pendingInterest", "matched"] },
+      status: { $in: ["pendingInterest", "matched"] }, // Active matches
     })
       .populate("itemId itemOwnerId interestedUserId")
       .sort({ lastMessageAt: -1, updatedAt: -1 });

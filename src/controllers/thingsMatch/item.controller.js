@@ -4,14 +4,10 @@ const AppError = require("../../utility/appError");
 
 //add Item Service
 const addItem = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
-  const result = await itemService.addItem(
-    req.body,
-    req.user.thingsMatchId,
-    req.files
-  );
+  const result = await itemService.addItem(req.body, req.TMID, req.files);
   res.status(201).json({
     status: "success",
     data: result,
@@ -19,7 +15,7 @@ const addItem = catchAsync(async (req, res, next) => {
 });
 
 const getItemsToSwipe = catchAsync(async (req, res, next) => {
-  if (!req.user || !req.user.thingsMatchId) {
+  if (!req.thingsMatchUser || !req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
 
@@ -32,7 +28,7 @@ const getItemsToSwipe = catchAsync(async (req, res, next) => {
     : undefined;
 
   const result = await itemService.getItemsToSwipe(
-    req.user.thingsMatchId,
+    req.TMID,
     coordinates,
     maxDistance
   );
