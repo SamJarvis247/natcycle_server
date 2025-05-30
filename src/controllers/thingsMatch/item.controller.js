@@ -1,5 +1,5 @@
 const itemService = require("../../service/thingsMatch/item.service");
-const catchAsync = require("../../utility/catchAsync");
+const { catchAsync } = require("../../utility/catchAsync.js");
 const AppError = require("../../utility/appError");
 
 const addItem = catchAsync(async (req, res, next) => {

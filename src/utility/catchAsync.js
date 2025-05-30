@@ -12,5 +12,4 @@ const catchAsync = (asyncFunction) => (req, res, next) => {
   }
 };
 
-
-module.exports = {catchAsync}
+module.exports = { catchAsync };
