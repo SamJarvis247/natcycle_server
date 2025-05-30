@@ -1,5 +1,5 @@
 const matchService = require("../../service/thingsMatch/match.service");
-const catchAsync = require("../../utility/catchAsync");
+const { catchAsync } = require("../../utility/catchAsync.js");
 const AppError = require("../../utility/appError");
 
 const swipeAndSendDefaultMessage = catchAsync(async (req, res, next) => {

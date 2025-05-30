@@ -16,6 +16,8 @@ const materialRoutes = require("./materialRoutes");
 //THINGS MATCH IMPORTS
 const thingsMatchAuthRoutes = require("./thingsMatch/auth.route");
 const thingsMatchItemRoutes = require("./thingsMatch/item.route");
+const thingsMatchMatchRoutes = require("./thingsMatch/match.route.js");
+const thingsMatchMessageRoutes = require("./thingsMatch/message.route.js");
 
 router.use("/auth", authRoutes);
 router.use("/profile", userRoutes);
@@ -33,5 +35,7 @@ router.use("/materials", materialRoutes);
 const thingsMatchPrefix = "/thingsMatch";
 router.use(`${thingsMatchPrefix}/auth`, thingsMatchAuthRoutes);
 router.use(`${thingsMatchPrefix}/items`, thingsMatchItemRoutes);
+router.use(`${thingsMatchPrefix}/matches`, thingsMatchMatchRoutes);
+router.use(`${thingsMatchPrefix}/messages`, thingsMatchMessageRoutes);
 
 module.exports = router;

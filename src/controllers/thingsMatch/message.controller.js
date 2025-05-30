@@ -1,8 +1,8 @@
 const messageService = require("../../service/thingsMatch/message.service");
-const catchAsync = require("../../utility/catchAsync");
+const { catchAsync } = require("../../utility/catchAsync.js");
 const AppError = require("../../utility/appError");
 
-exports.sendMessage = catchAsync(async (req, res, next) => {
+const sendMessage = catchAsync(async (req, res, next) => {
   if (!req.user || !req.user.thingsMatchId) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
@@ -28,7 +28,7 @@ exports.sendMessage = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getMessagesForMatch = catchAsync(async (req, res, next) => {
+const getMessagesForMatch = catchAsync(async (req, res, next) => {
   if (!req.user || !req.user.thingsMatchId) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
@@ -48,7 +48,7 @@ exports.getMessagesForMatch = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updateMessageStatus = catchAsync(async (req, res, next) => {
+const updateMessageStatus = catchAsync(async (req, res, next) => {
   if (!req.user || !req.user.thingsMatchId) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
@@ -71,3 +71,9 @@ exports.updateMessageStatus = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+module.exports = {
+  sendMessage,
+  getMessagesForMatch,
+  updateMessageStatus,
+};
