@@ -88,7 +88,7 @@ const seedItems = async (defaultSeedCount = 10) => {
           discoveryStatus: faker.helpers.weightedArrayElement([
             { value: "visible", weight: 7 },
             { value: "hidden_temporarily", weight: 2 },
-            { value: "faded_out", weight: 1 },
+            { value: "faded", weight: 1 },
           ]),
           interestCount: faker.number.int({ min: 0, max: 10 }),
         };
