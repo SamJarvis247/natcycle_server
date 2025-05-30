@@ -2,6 +2,7 @@ const itemService = require("../../service/thingsMatch/item.service");
 const { catchAsync } = require("../../utility/catchAsync.js");
 const AppError = require("../../utility/appError");
 
+//add Item Service
 const addItem = catchAsync(async (req, res, next) => {
   if (!req.user || !req.user.thingsMatchId) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
