@@ -5,50 +5,24 @@ const upload = require("../../config/multerConfig");
 
 const router = Router();
 
-// Item routes
-router.post(
-  "/add",
-  isThingsMatchUser,
-  upload.array("itemImages", 5),
-  thingsMatchItemController.addItem
-);
+router.use(isThingsMatchUser);
 
-router.get(
-  "/swipe",
-  isThingsMatchUser,
-  thingsMatchItemController.getItemsToSwipe
-);
+router
+  .route("/")
+  .post(upload.array("itemImages", 5), thingsMatchItemController.addItem)
+  .get(thingsMatchItemController.getItemsToSwipe);
 
-router.get(
-  "/created",
-  isThingsMatchUser,
-  thingsMatchItemController.getCreatedItems
-);
+// router.get("/my-items", thingsMatchItemController.getCreatedItems);
 
-router.get(
-  "/like/:itemId",
-  isThingsMatchUser,
-  thingsMatchItemController.swipeLike
-);
-router.get(
-  "/dislike/:itemId",
-  isThingsMatchUser,
-  thingsMatchItemController.swipeDislike
-);
+router
+  .route("/:itemId")
+  .get(thingsMatchItemController.getItemById)
+  // .put(upload.array("itemImages", 5), thingsMatchItemController.updateItem)
+  .delete(thingsMatchItemController.deleteItem);
 
-//update item
-router.put(
-  "/:itemId",
-  isThingsMatchUser,
-  upload.array("itemImages", 5),
-  thingsMatchItemController.updateItem
-);
-
-//get item by id
-router.get(
-  "/:itemId",
-  isThingsMatchUser,
-  thingsMatchItemController.getItemById
+router.patch(
+  "/:itemId/status",
+  thingsMatchItemController.updateItemDiscoveryStatus
 );
 
 module.exports = router;

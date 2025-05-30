@@ -1,172 +1,98 @@
-const { catchAsync } = require("../../utility/catchAsync.js");
-const { errorResponse, successResponse } = require("../../utility/response.js");
+const itemService = require("../../service/thingsMatch/item.service");
+const catchAsync = require("../../utility/catchAsync");
+const AppError = require("../../utility/appError");
 
-// service
-const itemService = require("../../service/thingsMatch/item.service.js");
-
-// Add a new item
-// Add a new item
-const addItem = catchAsync(async (req, res) => {
-  try {
-    const thingsMatchUserId = req.TMID;
-    // Pass both the request body and files to the service
-    const result = await itemService.addItem(
-      req.body,
-      thingsMatchUserId,
-      req.files
-    );
-
-    return successResponse(res, result);
-  } catch (error) {
-    console.log("Error in addItem controller:", error);
-    if (error instanceof Error) {
-      return errorResponse(res, error.message);
-    }
+const addItem = catchAsync(async (req, res, next) => {
+  if (!req.user || !req.user.thingsMatchId) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
+  const result = await itemService.addItem(
+    req.body,
+    req.user.thingsMatchId,
+    req.files
+  );
+  res.status(201).json({
+    status: "success",
+    data: result,
+  });
 });
 
-// Get items available to swipe
-const getItemsToSwipe = catchAsync(async (req, res) => {
-  try {
-    const thingsMatchUserId = req.TMID;
-    const { longitude, latitude, distance, notInInterest, testing } = req.query;
-    console.log(req.query);
-
-    // Convert query parameters
-    const parsedNotInInterest = notInInterest === "true";
-    const coordinates =
-      longitude && latitude
-        ? [parseFloat(longitude), parseFloat(latitude)]
-        : null;
-    const maxDistance = distance ? parseInt(distance) : 1000000;
-
-    const result = await itemService.getItemsToSwipe(
-      thingsMatchUserId,
-      parsedNotInInterest,
-      coordinates,
-      maxDistance,
-      testing
-    );
-
-    return successResponse(res, result);
-  } catch (error) {
-    console.log("Error in getItemsToSwipe controller:", error);
-    if (error instanceof Error) {
-      return errorResponse(res, error.message);
-    }
+const getItemsToSwipe = catchAsync(async (req, res, next) => {
+  if (!req.user || !req.user.thingsMatchId) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
+
+  const coordinates =
+    req.query.longitude && req.query.latitude
+      ? [parseFloat(req.query.longitude), parseFloat(req.query.latitude)]
+      : null;
+  const maxDistance = req.query.maxDistance
+    ? parseInt(req.query.maxDistance, 10)
+    : undefined;
+
+  const result = await itemService.getItemsToSwipe(
+    req.user.thingsMatchId,
+    coordinates,
+    maxDistance
+  );
+  res.status(200).json({
+    status: "success",
+    data: result,
+  });
 });
 
-// Get a specific item by ID
-const getItemById = catchAsync(async (req, res) => {
-  try {
-    const { itemId } = req.params;
-
-    if (!itemId) {
-      return errorResponse(res, "Item ID is required");
-    }
-
-    const result = await itemService.getItemById(itemId);
-
-    return successResponse(res, result);
-  } catch (error) {
-    console.log("Error in getItemById controller:", error);
-    if (error instanceof Error) {
-      return errorResponse(res, error.message);
-    }
+const getItemById = catchAsync(async (req, res, next) => {
+  const item = await itemService.getItemById(req.params.itemId);
+  if (!item) {
+    return next(new AppError("No item found with that ID", 404));
   }
+  res.status(200).json({
+    status: "success",
+    data: {
+      item,
+    },
+  });
 });
 
-// Swipe like on an item
-const swipeLike = catchAsync(async (req, res) => {
-  try {
-    const { itemId } = req.params;
-    const thingsMatchUserId = req.TMID;
-
-    if (!itemId) {
-      return errorResponse(res, "Item ID is required");
-    }
-
-    const result = await itemService.swipeLike(itemId, thingsMatchUserId);
-
-    return successResponse(res, result);
-  } catch (error) {
-    console.log("Error in swipeLike controller:", error);
-    if (error instanceof Error) {
-      return errorResponse(res, error.message);
-    }
+const updateItemDiscoveryStatus = catchAsync(async (req, res, next) => {
+  if (!req.user || !req.user.thingsMatchId) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
+  const { status } = req.body;
+  if (!status) {
+    return next(new AppError("New discovery status is required", 400));
+  }
+  const item = await itemService.setItemDiscoveryStatus(
+    req.params.itemId,
+    status,
+    req.user.thingsMatchId
+  );
+  res.status(200).json({
+    status: "success",
+    data: {
+      item,
+    },
+  });
 });
 
-// Swipe dislike on an item
-const swipeDislike = catchAsync(async (req, res) => {
-  try {
-    const { itemId } = req.params;
-    const thingsMatchUserId = req.TMID;
-
-    if (!itemId) {
-      return errorResponse(res, "Item ID is required");
-    }
-
-    const result = await itemService.swipeDislike(itemId, thingsMatchUserId);
-
-    return successResponse(res, result);
-  } catch (error) {
-    console.log("Error in swipeDislike controller:", error);
-    if (error instanceof Error) {
-      return errorResponse(res, error.message);
-    }
+const deleteItem = catchAsync(async (req, res, next) => {
+  if (!req.user || !req.user.thingsMatchId) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
+  await itemService.deleteItem(req.params.itemId, req.user.thingsMatchId);
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
 });
 
-// Get items created by the user
-const getCreatedItems = catchAsync(async (req, res) => {
-  try {
-    const thingsMatchUserId = req.TMID;
-    const result = await itemService.getCreatedItems(thingsMatchUserId);
+// Placeholder for updating item details if needed (not explicitly in flow but common)
+// exports.updateItem = catchAsync(async (req, res, next) => { ... });
 
-    return successResponse(res, result);
-  } catch (error) {
-    console.log("Error in getCreatedItems controller:", error);
-    if (error instanceof Error) {
-      return errorResponse(res, error.message);
-    }
-  }
-});
-
-// Update an existing item
-const updateItem = catchAsync(async (req, res) => {
-  try {
-    const { itemId } = req.params;
-    const thingsMatchUserId = req.TMID;
-
-    if (!itemId) {
-      return errorResponse(res, "Item ID is required");
-    }
-
-    const result = await itemService.updateItem(
-      itemId,
-      req.body,
-      thingsMatchUserId,
-      req.files
-    );
-
-    return successResponse(res, result);
-  } catch (error) {
-    console.log("Error in updateItem controller:", error);
-    if (error instanceof Error) {
-      return errorResponse(res, error.message);
-    }
-  }
-});
-
-// Update the module exports
 module.exports = {
   addItem,
   getItemsToSwipe,
   getItemById,
-  swipeLike,
-  swipeDislike,
-  getCreatedItems,
-  updateItem,
+  updateItemDiscoveryStatus,
+  deleteItem,
 };

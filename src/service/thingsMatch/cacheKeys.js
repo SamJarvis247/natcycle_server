@@ -3,7 +3,8 @@ const CACHE_KEYS = {
   ITEMS_LAST_UPDATED: "TMItemsLastUpdated", // Timestamp when any item was last added/updated/deleted
 
   // Item specific keys
-  ITEM_DETAIL: (itemId) => `thingsMatchItem:${itemId}`, // Stores a single item's detailed data
+  ITEM_DETAIL: (itemId) => `item:${itemId}`,
+  ITEMS_LAST_UPDATED: "items_last_updated_timestamp",
 
   // User specific keys
   USER_AVAILABLE_ITEMS: (userId) => `TMUserAvailableItems:${userId}`, // Items available for a user to swipe
@@ -44,6 +45,13 @@ const CACHE_KEYS = {
     CACHE_KEYS.USER_STATS(userId),
     CACHE_KEYS.USER_CREATED_ITEMS(userId),
   ],
+  // Add new keys for Matches
+  MATCH_DETAIL: (matchId) => `match:${matchId}`,
+  USER_MATCHES: (userId) => `user:${userId}:matches`,
+  // Add new keys for Messages
+  MESSAGES_IN_MATCH: (matchId) => `match:${matchId}:messages`,
+  MESSAGES_IN_MATCH_PAGINATED: (matchId, page, limit) =>
+    `match:${matchId}:messages:page:${page}:limit:${limit}`,
 };
 
 module.exports = CACHE_KEYS;

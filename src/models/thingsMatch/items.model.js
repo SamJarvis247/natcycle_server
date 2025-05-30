@@ -68,6 +68,17 @@ const itemSchema = new mongoose.Schema(
       enum: ["available", "matched", "given_away"],
       default: "available",
     },
+    discoveryStatus: {
+      type: String,
+      enum: ["visible", "hidden_temporarily", "faded_out"],
+      default: "visible",
+      index: true,
+    },
+    interestCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
