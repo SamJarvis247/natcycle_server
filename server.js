@@ -1,18 +1,33 @@
 // Add this near the top of your file
 const cronScheduler = require("./src/cron");
+const http = require("http");
+const { Server } = require("socket.io");
+const corsConfig = require("./src/config/corsConfig");
+const initializeSocketIO = require("./src/socket/chatHandler"); // Will create this
 
 const app = require("./src/app");
-// const RedisService = require('./src/service/redis.service.js')
 const mongoose = require("mongoose");
-
-// socket config
-const http = require("http");
 
 // import mongodb config
 const config = require("./src/config/dbConfig");
 
 //import the geospatial Models
 const Item = require("./src/models/thingsMatch/items.model");
+
+// Create HTTP server
+const httpServer = http.createServer(app);
+
+// Initialize Socket.IO
+const io = new Server(httpServer, {
+  cors: corsConfig, // Use the same CORS config as Express
+});
+
+// Pass 'io' instance to the socket handler
+initializeSocketIO(io);
+
+// Make io accessible in request objects for controllers
+// This allows controllers to access io via req.app.get('socketio')
+app.set('socketio', io);
 
 // connect to mongoDB
 mongoose
@@ -39,10 +54,9 @@ mongoose
 // start server
 const port = process.env.PORT || "5000";
 
-// const server = http.Server(app)
-
-app.listen(port, () => {
-  console.log("App running on port 5000...");
+httpServer.listen(port, () => { // Use httpServer to listen
+  console.log(`App running on port ${port}...`);
+  console.log(`Socket.IO initialized and listening on port ${port}`);
 });
 
 // This will automatically start the scheduler

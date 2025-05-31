@@ -102,6 +102,20 @@ const updateItem = catchAsync(async (req, res, next) => {
   });
 });
 
+const getCreatedItems = catchAsync(async (req, res, next) => {
+  if (!req.thingsMatchUser || !req.TMID) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
+  }
+  const items = await itemService.getCreatedItems(req.TMID);
+  res.status(200).json({
+    status: "success",
+    results: items.length,
+    data: {
+      items,
+    },
+  });
+});
+
 module.exports = {
   addItem,
   getItemsToSwipe,
@@ -109,4 +123,5 @@ module.exports = {
   updateItemDiscoveryStatus,
   deleteItem,
   updateItem,
+  getCreatedItems,
 };

@@ -1,0 +1,201 @@
+:root {
+  --bg-main: #a3b8a3;
+  --surface-lightest: #e8f0e8;
+  --surface-light: #bcc8bc;
+  --surface-medium: #5a7a6a;
+  --surface-dark: #3e5a4e;
+  --surface-darker: #23382e;
+  --surface-darkest: #1a2b24;
+
+  --text-on-light-bg: #1a2b24; /* Text on light backgrounds like lightest, light */
+  --text-on-dark-bg: #e8f0e8; /* Text on dark backgrounds like dark, darker, darkest */
+  --text-on-medium-bg: #e8f0e8; /* Text on medium backgrounds */
+
+  --primary-accent: #3e5a4e;
+  --primary-accent-hover: #23382e;
+  --secondary-accent: #5a7a6a;
+  --secondary-accent-hover: #3e5a4e;
+
+  --border-color: #6a826a;
+  --input-bg: #d0d8d0;
+  --danger-color: #b33939;
+  --danger-hover: #8c2d2d;
+  --success-color: #218c74;
+  --success-hover: #186754;
+  --info-color: #3498db;
+  --info-hover: #2980b9;
+
+  --font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --border-radius: 5px;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-main);
+  color: var(--text-on-light-bg);
+  line-height: 1.6;
+}
+
+.container {
+  width: 90%;
+  max-width: 1400px;
+  margin: 20px auto;
+  padding: 15px;
+}
+
+header {
+  background-color: var(--surface-dark);
+  color: var(--text-on-dark-bg);
+  padding: 1rem 0;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: var(--box-shadow);
+}
+header h1 {
+  font-size: 1.8em;
+}
+
+section,
+.card {
+  background-color: var(--surface-lightest);
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  border: 1px solid var(--border-color);
+}
+
+h2,
+h3 {
+  color: var(--primary-accent);
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--surface-light);
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: var(--primary-accent);
+}
+
+.form-group-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+.form-group-inline .form-group {
+  flex: 1;
+  min-width: 150px;
+  margin-bottom: 0;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="file"],
+textarea,
+select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--input-bg);
+  color: var(--text-on-light-bg);
+  font-size: 1em;
+  transition: border-color 0.3s ease;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 2px rgba(62, 90, 78, 0.2);
+}
+textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+button {
+  background-color: var(--primary-accent);
+  color: var(--text-on-dark-bg);
+  padding: 10px 15px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: bold;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  margin-right: 5px;
+  margin-bottom: 5px;
+}
+button:hover {
+  background-color: var(--primary-accent-hover);
+}
+button:active {
+  transform: translateY(1px);
+}
+
+button.secondary {
+  background-color: var(--secondary-accent);
+}
+button.secondary:hover {
+  background-color: var(--secondary-accent-hover);
+}
+button.danger {
+  background-color: var(--danger-color);
+}
+button.danger:hover {
+  background-color: var(--danger-hover);
+}
+button.success {
+  background-color: var(--success-color);
+}
+button.success:hover {
+  background-color: var(--success-hover);
+}
+button.info {
+  background-color: var(--info-color);
+}
+button.info:hover {
+  background-color: var(--info-hover);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.user-info {
+  background-color: var(--surface-medium);
+  color: var(--text-on-medium-bg);
+  padding: 10px;
+  border-radius: var(--border-radius);
+  margin-top: 15px;
+  font-size: 0.9em;
+}
+.user-info p {
+  margin: 5px 0;
+}
+.user-info strong {
+  color: var(--surface-lightest);
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}

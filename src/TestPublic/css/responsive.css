@@ -1,0 +1,79 @@
+/* Mobile First Approach - main.css and components.css are base */
+
+/* Medium screens (tablets) */
+@media (min-width: 768px) {
+  .container {
+    width: 85%;
+    padding: 20px;
+  }
+
+  header h1 {
+    font-size: 2em;
+  }
+
+  .grid-container {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+
+  .modal-content {
+    width: 70%;
+    max-width: 600px;
+  }
+
+  .tabs button.tab-button {
+    padding: 15px 15px;
+  }
+}
+
+/* Large screens (desktops) */
+@media (min-width: 1024px) {
+  .container {
+    width: 80%;
+    max-width: 1200px; /* Limit max width for very large screens */
+  }
+
+  header h1 {
+    font-size: 2.2em;
+  }
+
+  .grid-container {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .modal-content {
+    max-width: 700px;
+  }
+
+  .form-group-inline {
+    gap: 20px;
+  }
+}
+
+/* Specific adjustments for smaller screens if needed */
+@media (max-width: 480px) {
+  .tabs {
+    flex-direction: column; /* Stack tabs vertically on very small screens */
+  }
+  .tabs button.tab-button {
+    border-bottom: 1px solid var(--surface-medium);
+  }
+  .tabs button.tab-button.active {
+    border-bottom-color: var(--primary-accent); /* Keep active indicator */
+  }
+
+  .form-group-inline {
+    flex-direction: column;
+  }
+  .form-group-inline .form-group {
+    width: 100%;
+  }
+
+  .chat-input-area {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .chat-input-area textarea {
+    margin-bottom: 8px;
+  }
+}

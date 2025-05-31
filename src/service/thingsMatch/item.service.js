@@ -4,6 +4,7 @@ const getCoordinates = require("../../utility/geocode.js");
 const cloudinaryUpload = require("../../config/cloudinaryUpload");
 const mongoose = require("mongoose");
 const User = require("../../models/userModel.js");
+const Match = require("../../models/thingsMatch/match.model.js");
 
 async function addItem(data, thingsMatchUserId, files) {
   try {
@@ -215,7 +216,25 @@ async function deleteItem(itemId, thingsMatchUserId) {
 async function getCreatedItems(thingsMatchUserId) {
   try {
     const items = await Item.find({ userId: thingsMatchUserId });
-    return items;
+    console.log(items.length, "items found for user:", thingsMatchUserId);
+    const populatedItems = await Promise.all(items.map(async (item) => {
+      const itemObject = item.toObject ? item.toObject() : { ...item };
+      let ID = itemObject.userId;
+      //check the matches Database
+      const hasMatches = await Match.find({
+        itemOwnerId: ID,
+        itemId: itemObject._id
+      });
+      if (hasMatches.length) {
+        itemObject.hasMatches = {
+          matchId: hasMatches.map(match => match._id),
+          status: hasMatches.length > 0
+        };
+      }
+      return itemObject;
+    }));
+
+    return { items: populatedItems };
   } catch (error) {
     console.error("Error fetching created items:", error);
     throw new Error("Failed to fetch created items: " + error.message);

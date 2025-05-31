@@ -12,6 +12,19 @@ router.post(
   thingsMatchMatchController.swipeAndSendDefaultMessage
 );
 
+//get all matches for a specific item
+router.get(
+  "/:itemId/matches",
+  thingsMatchMatchController.getMatchesForItem
+);
+
+// //get all users created items with matches
+// router.get(
+//   "/my-items",
+//   thingsMatchMatchController.getUserCreatedItemsWithMatches
+// );
+
+
 // Item owner confirms a pending match request
 router.patch(
   "/:matchId/confirm",
@@ -19,7 +32,7 @@ router.patch(
 );
 
 // Update match status (e.g., 'blocked', 'unmatched') by either party
-router.patch("/:matchId/status", thingsMatchMatchController.updateMatchStatus);
+// router.patch("/:matchId/status", thingsMatchMatchController.updateMatchStatus);
 
 // Get all matches for the logged-in user
 router.get("/my-matches", thingsMatchMatchController.getUserMatches);

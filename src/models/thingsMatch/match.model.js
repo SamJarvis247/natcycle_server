@@ -39,6 +39,10 @@ const matchSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    defaultMessageSent: {
+      type: Boolean,
+      default: false,
+    },
     // You might want to store the ID of the chat document if you create a separate chat model per match
     // chatId: {
     //   type: mongoose.Schema.Types.ObjectId,

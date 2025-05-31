@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ThingsMatch Test Client</title>
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+  </head>
+  <body>
+    <header>
+      <h1>ThingsMatch Test Client</h1>
+    </header>
+
+    <div class="container">
+      <!-- AUTHENTICATION SECTION -->
+      <section id="authSection" class="auth-section card">
+        <h2>Authentication</h2>
+        <div class="form-group">
+          <label for="jwtToken">ThingsMatch JWT Token:</label>
+          <textarea
+            id="jwtToken"
+            rows="3"
+            placeholder="Paste ThingsMatchUser JWT Token here"
+          ></textarea>
+        </div>
+        <button id="loginButton">Login / Set User</button>
+        <div id="userInfo" class="user-info hidden">
+          <p><strong>User TMID:</strong> <span id="userTMID"></span></p>
+          <p><strong>Name:</strong> <span id="userName"></span></p>
+          <p><strong>Email:</strong> <span id="userEmail"></span></p>
+        </div>
+      </section>
+
+      <!-- MAIN APPLICATION SECTION (Hidden until authenticated) -->
+      <main id="mainAppSection" class="main-app-section hidden">
+        <h2>Application Dashboard</h2>
+        <nav class="tabs">
+          <button class="tab-button active" data-tab="swipeTab">
+            Swipe Items
+          </button>
+          <button class="tab-button" data-tab="createItemTab">
+            Create Item
+          </button>
+          <button class="tab-button" data-tab="myItemsTab">
+            My Listed Items
+          </button>
+          <button class="tab-button" data-tab="myMatchesTab">My Matches</button>
+          <button class="tab-button" data-tab="chatTab">Chat</button>
+        </nav>
+
+        <!-- SWIPE ITEMS TAB -->
+        <section id="swipeTab" class="tab-content card">
+          <h3>Swipe Items</h3>
+          <div class="form-group-inline">
+            <div class="form-group">
+              <label for="swipeLongitude">Longitude (Optional):</label>
+              <input
+                type="text"
+                id="swipeLongitude"
+                placeholder="e.g., -73.985130"
+              />
+            </div>
+            <div class="form-group">
+              <label for="swipeLatitude">Latitude (Optional):</label>
+              <input
+                type="text"
+                id="swipeLatitude"
+                placeholder="e.g., 40.758896"
+              />
+            </div>
+            <div class="form-group">
+              <label for="swipeMaxDistance">Max Distance (m, Opt.):</label>
+              <input
+                type="number"
+                id="swipeMaxDistance"
+                placeholder="e.g., 10000"
+              />
+            </div>
+          </div>
+          <button id="fetchSwipeItemsButton">Fetch Items to Swipe</button>
+          <div id="swipeItemsContainer" class="grid-container">
+            <!-- Item cards will be dynamically inserted here -->
+          </div>
+        </section>
+
+        <!-- CREATE ITEM TAB -->
+        <section id="createItemTab" class="tab-content card hidden">
+          <h3>Create New Item</h3>
+          <form id="createItemForm">
+            <div class="form-group">
+              <label for="itemName">Name:</label>
+              <input type="text" id="itemName" required />
+            </div>
+            <div class="form-group">
+              <label for="itemDescription">Description:</label>
+              <textarea id="itemDescription" required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="itemCategory">Category:</label>
+              <select id="itemCategory" required>
+                <option value="Shoes">Shoes</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Books">Books</option>
+                <option value="Furniture">Furniture</option>
+                <option value="Food">Food</option>
+                <option value="Flowers">Flowers</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="itemAddress">Address:</label>
+              <input
+                type="text"
+                id="itemAddress"
+                placeholder="e.g., 123 Main St, Anytown, USA"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="itemImages">Item Images (Max 5):</label>
+              <input type="file" id="itemImages" multiple accept="image/*" />
+            </div>
+            <button type="submit">Create Item</button>
+          </form>
+        </section>
+
+        <!-- MY LISTED ITEMS TAB -->
+        <section id="myItemsTab" class="tab-content card hidden">
+          <h3>My Listed Items</h3>
+          <button id="fetchMyItemsButton">Refresh My Items</button>
+          <div id="myItemsContainer" class="grid-container">
+            <!-- User's item cards -->
+          </div>
+        </section>
+
+        <!-- MY MATCHES TAB -->
+        <section id="myMatchesTab" class="tab-content card hidden">
+          <h3>My Matches</h3>
+          <button id="fetchMyMatchesButton">Refresh My Matches</button>
+          <div id="myMatchesContainer" class="grid-container">
+            <!-- Match cards -->
+          </div>
+        </section>
+
+        <!-- CHAT TAB -->
+        <section id="chatTab" class="tab-content card hidden">
+          <h3>Chat</h3>
+          <div id="chatSelectionArea">
+            <p>
+              Select a 'matched' item from "My Matches" or enter a Match ID.
+            </p>
+            <div class="form-group">
+              <label for="chatMatchIdInput">Enter Match ID to Chat:</label>
+              <input
+                type="text"
+                id="chatMatchIdInput"
+                placeholder="Enter Match ID"
+              />
+            </div>
+            <button id="joinChatButton">Join/Open Chat</button>
+          </div>
+          <div id="chatInterface" class="hidden">
+            <h4>
+              Chatting for Match ID: <span id="currentChatMatchId"></span>
+            </h4>
+            <p>With: <span id="chatParticipantName"></span></p>
+            <div id="chatWindow" class="chat-window"></div>
+            <div id="typingIndicator"></div>
+            <div class="chat-input-area">
+              <textarea
+                id="chatMessageInput"
+                placeholder="Type your message..."
+                rows="2"
+              ></textarea>
+              <button id="sendChatMessageButton">Send</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- MODALS -->
+      <div id="defaultMessageModal" class="modal hidden">
+        <div class="modal-content">
+          <span class="close-modal-button">&times;</span>
+          <h3>Send Initial Message</h3>
+          <p>Item: <span id="modalItemNameForMsg"></span></p>
+          <input type="hidden" id="modalItemIdForMsg" />
+          <div class="form-group">
+            <label for="defaultMessageContent">Message:</label>
+            <textarea
+              id="defaultMessageContent"
+              rows="4"
+              placeholder="Hi! I'm interested in your item..."
+            ></textarea>
+          </div>
+          <button id="sendDefaultMessageButton">Send Interest & Message</button>
+        </div>
+      </div>
+
+      <div id="editItemModal" class="modal hidden">
+        <div class="modal-content">
+          <span class="close-modal-button">&times;</span>
+          <h3>Edit Item</h3>
+          <form id="editItemForm">
+            <input type="hidden" id="editItemId" />
+            <div class="form-group">
+              <label for="editItemName">Name:</label
+              ><input type="text" id="editItemName" required />
+            </div>
+            <div class="form-group">
+              <label for="editItemDescription">Description:</label
+              ><textarea id="editItemDescription" required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="editItemCategory">Category:</label
+              ><select id="editItemCategory" required>
+                <option value="Shoes">Shoes</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Books">Books</option>
+                <option value="Furniture">Furniture</option>
+                <option value="Food">Food</option>
+                <option value="Flowers">Flowers</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editItemAddress">Address:</label
+              ><input type="text" id="editItemAddress" required />
+            </div>
+            <button type="submit">Save Changes</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="updateMatchStatusModal" class="modal hidden">
+        <div class="modal-content">
+          <span class="close-modal-button">&times;</span>
+          <h3>Update Match Status</h3>
+          <input type="hidden" id="updateStatusMatchId" />
+          <div class="form-group">
+            <label for="newMatchStatus">New Status:</label>
+            <select id="newMatchStatus">
+              <option value="unmatched">Unmatched</option>
+              <option value="blocked">Blocked (by me)</option>
+              <option value="completed_by_owner">Completed by Owner</option>
+              <option value="completed_by_swiper">Completed by Swiper</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <button id="submitUpdateMatchStatusButton">Update Status</button>
+        </div>
+      </div>
+      <div id="itemMatchesModal" class="modal hidden">
+        <div class="modal-content">
+          <span class="close-modal-button">&times;</span>
+          <h3>
+            Matches for Item: <span id="modalItemNameForMatchesView"></span>
+          </h3>
+          <div id="itemMatchesListContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="notificationsArea">
+      <!-- Real-time notifications -->
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

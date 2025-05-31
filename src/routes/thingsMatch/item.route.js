@@ -12,7 +12,7 @@ router
   .post(upload.array("itemImages", 5), thingsMatchItemController.addItem)
   .get(thingsMatchItemController.getItemsToSwipe);
 
-// router.get("/my-items", thingsMatchItemController.getCreatedItems);
+router.get("/my-items", thingsMatchItemController.getCreatedItems);
 
 router
   .route("/:itemId")

@@ -47,6 +47,7 @@ const updateThingsMatchAccount = catchAsync(async (req, res) => {
 //get user
 const getUser = catchAsync(async (req, res) => {
   try {
+    console.log("Fetching user profile for ThingsMatch...", req.TMID);
     const TMID = req.TMID;
     //get user by TMID
     const user = await thingsMatchAuthService.getUser(TMID);
