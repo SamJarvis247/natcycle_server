@@ -12,6 +12,9 @@ async function addItem(data, thingsMatchUserId, files) {
     if (!name || !description || !category || !address) {
       throw new Error("All fields are required");
     }
+    if (!files || files.length === 0) {
+      throw new Error("At least one image is required");
+    }
     const user = await ThingsMatchUser.findById(thingsMatchUserId);
     if (!user) {
       throw new Error("User not found");
