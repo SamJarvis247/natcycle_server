@@ -103,10 +103,21 @@ async function getItemsToSwipe(
     // }
     // Removed user.interests logic as per new flow (swiping shows all items meeting criteria)
 
-    const items = await Item.find(fetchItemQuery)
+    let items = await Item.find(fetchItemQuery)
+    console.log("🚀 ~ items:", items.length)
 
     if (!items || items.length === 0) {
-      return { message: "No items available to swipe", items: [] };
+      //run query again but with a different way
+      fetchItemQuery = {
+        userId: { $ne: mongoose.Types.ObjectId(thingsMatchUserId) },
+      };
+      items = await Item.find(fetchItemQuery)
+        .sort({ createdAt: -1 });
+      if (!items || items.length === 0) {
+        return { message: "No items found", items: [] };
+      }
+      console.log("Fallback items found:", items.length);
+      return items;
     }
 
     const populatedItems = await Promise.all(items.map(async (item) => {
