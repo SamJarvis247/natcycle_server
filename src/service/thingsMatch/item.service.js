@@ -221,14 +221,14 @@ async function getCreatedItems(thingsMatchUserId) {
       const itemObject = item.toObject ? item.toObject() : { ...item };
       let ID = itemObject.userId;
       //check the matches Database
-      const hasMatches = await Match.find({
+      const hasInterests = await Match.find({
         itemOwnerId: ID,
         itemId: itemObject._id
       });
-      if (hasMatches.length) {
-        itemObject.hasMatches = {
-          matchId: hasMatches.map(match => match._id),
-          status: hasMatches.length > 0
+      if (hasInterests.length) {
+        itemObject.hasInterests = {
+          interest: hasInterests.map(match => match._id),
+          status: hasInterests.length > 0
         };
       }
       return itemObject;

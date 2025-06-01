@@ -216,10 +216,19 @@ async function getUserMatches(userId) {
       .populate('itemId', 'name itemImages category')
       .sort({ lastMessageAt: -1, updatedAt: -1 });
 
-    const populatedMatches = await Promise.all(
-      matches.map(match => _populateMatchParticipants(match))
-    );
-    return populatedMatches;
+    const populatedMatches = await Promise.all(matches.map(async (match) => {
+      const populatedMatch = await _populateMatchParticipants(match);
+      if (!populatedMatch) return null;
+
+      // Check if the user is part of the match
+      if (populatedMatch.itemOwnerDetails.thingsMatchId.toString() === userId.toString() ||
+        populatedMatch.itemSwiperDetails.thingsMatchId.toString() === userId.toString()) {
+        return populatedMatch;
+      }
+      return null;
+    }));
+    // Filter out null matches
+    return populatedMatches.filter(match => match !== null);
   } catch (error) {
     console.error("Error fetching user matches:", error);
     throw new Error("Failed to fetch user matches: " + error.message);
@@ -229,7 +238,7 @@ async function getUserMatches(userId) {
 async function getMatchById(matchId, requestingUserId) {
   try {
     const match = await Match.findById(matchId)
-      .populate('itemId', 'name itemImages category description'); // More item details
+      .populate('itemId', 'name itemImages location category description');
 
     if (!match) {
       return null;
@@ -240,7 +249,7 @@ async function getMatchById(matchId, requestingUserId) {
       throw new Error("User not authorized to view this match.");
     }
 
-    return await _populateMatchParticipants(match);
+    return match.toObject();
   } catch (error) {
     console.error(`Error fetching match by ID ${matchId}:`, error);
     throw new Error(`Failed to fetch match details: ${error.message}`);
