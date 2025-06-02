@@ -1,33 +1,35 @@
 const Message = require("../../models/thingsMatch/message.model.js");
 const Match = require("../../models/thingsMatch/match.model.js");
 const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
-// User model is referenced via ThingsMatchUser's populated 'userId' field
 
 async function populateSenderDetails(message) {
   if (!message || !message.senderId) return message;
   let messageObject = message.toObject ? message.toObject() : { ...message };
 
   try {
-    const senderTMUser = await ThingsMatchUser.findById(message.senderId)
-      .populate({
-        path: 'natcycleId',
-        select: 'firstName lastName profilePicture email'
-      });
+    const senderTMUser = await ThingsMatchUser.findById(
+      message.senderId
+    ).populate({
+      path: "natcycleId",
+      select: "firstName lastName profilePicture email",
+    });
 
     if (senderTMUser && senderTMUser.natcycleId) {
       const mainUser = senderTMUser.natcycleId;
       messageObject.senderDetails = {
         _id: mainUser._id,
         thingsMatchId: senderTMUser._id,
-        name: `${mainUser.firstName || ''} ${mainUser.lastName || ''}`.trim(),
+        name: `${mainUser.firstName || ""} ${mainUser.lastName || ""}`.trim(),
         profilePicture: mainUser.profilePicture?.url || null,
       };
     } else {
-      console.warn(`Could not populate full sender details for senderId (ThingsMatchUser): ${message.senderId}`);
+      console.warn(
+        `Could not populate full sender details for senderId (ThingsMatchUser): ${message.senderId}`
+      );
       if (senderTMUser) {
         messageObject.senderDetails = {
           thingsMatchId: senderTMUser._id,
-          name: "User" // Fallback name
+          name: "User", // Fallback name
         };
       } else {
         messageObject.senderDetails = null;
@@ -51,19 +53,30 @@ async function sendMessage(
     const match = await Match.findById(matchId);
     if (!match) throw new Error("Match not found for sending message.");
 
-    const blockedStatuses = ["blocked", "owner_blocked_swiper", "swiper_blocked_owner"];
+    const blockedStatuses = [
+      "blocked",
+      "owner_blocked_swiper",
+      "swiper_blocked_owner",
+    ];
     if (blockedStatuses.includes(match.status)) {
       throw new Error("Cannot send message, chat is blocked.");
     }
     if (match.status === "unmatched") {
       throw new Error("Cannot send message, chat is unmatched.");
     }
-    if (match.status !== "pendingInterest" && match.status !== "active" && messageType === "custom") {
-      throw new Error(`Cannot send custom message for match status: ${match.status}`);
+    if (
+      match.status !== "pendingInterest" &&
+      match.status !== "active" &&
+      messageType === "custom"
+    ) {
+      throw new Error(
+        `Cannot send custom message for match status: ${match.status}`
+      );
     }
 
     const isSenderOwner = match.itemOwnerId?.toString() === senderId.toString();
-    const isSenderSwiper = match.itemSwiperId?.toString() === senderId.toString();
+    const isSenderSwiper =
+      match.itemSwiperId?.toString() === senderId.toString();
 
     if (!isSenderOwner && !isSenderSwiper) {
       throw new Error("Sender is not part of this match.");
@@ -74,7 +87,9 @@ async function sendMessage(
       : match.itemOwnerId?.toString();
 
     if (expectedReceiver !== receiverId.toString()) {
-      throw new Error("Receiver ID does not match the other participant in the match.");
+      throw new Error(
+        "Receiver ID does not match the other participant in the match."
+      );
     }
 
     let message = new Message({
@@ -104,7 +119,10 @@ async function getMessagesForMatch(matchId, userId, page = 1, limit = 20) {
     const match = await Match.findById(matchId);
     if (!match) throw new Error("Match not found.");
 
-    if (match.itemOwnerId.toString() !== userId.toString() && match.itemSwiperId.toString() !== userId.toString()) {
+    if (
+      match.itemOwnerId.toString() !== userId.toString() &&
+      match.itemSwiperId.toString() !== userId.toString()
+    ) {
       throw new Error("User not authorized to view messages for this match.");
     }
 
@@ -114,12 +132,16 @@ async function getMessagesForMatch(matchId, userId, page = 1, limit = 20) {
       .skip(skip)
       .limit(limit);
 
-    const populatedMessages = await Promise.all(messages.map(msg => populateSenderDetails(msg)));
+    const populatedMessages = await Promise.all(
+      messages.map((msg) => populateSenderDetails(msg))
+    );
 
     return {
       messages: populatedMessages.reverse(),
       currentPage: page,
-      totalPages: Math.ceil(await Message.countDocuments({ matchId }) / limit)
+      totalPages: Math.ceil(
+        (await Message.countDocuments({ matchId })) / limit
+      ),
     };
   } catch (error) {
     console.error("Error fetching messages for match:", error);
@@ -132,19 +154,30 @@ async function updateMessageStatus(messageId, userId, status) {
     const message = await Message.findById(messageId);
     if (!message) throw new Error("Message not found.");
 
-    if (message.receiverId.toString() !== userId.toString() && (status === "read" || status === "delivered")) {
-      throw new Error("User not authorized to update this message status for receiver actions.");
+    if (
+      message.receiverId.toString() !== userId.toString() &&
+      (status === "read" || status === "delivered")
+    ) {
+      throw new Error(
+        "User not authorized to update this message status for receiver actions."
+      );
     }
 
     let updated = false;
-    if (status === "read" && message.receiverId.toString() === userId.toString()) {
+    if (
+      status === "read" &&
+      message.receiverId.toString() === userId.toString()
+    ) {
       if (message.status !== "read") {
         message.status = "read";
         message.readByReceiver = true;
         updated = true;
       }
-    } else if (status === "delivered" && message.receiverId.toString() === userId.toString()) {
-      if (message.status === 'sent') {
+    } else if (
+      status === "delivered" &&
+      message.receiverId.toString() === userId.toString()
+    ) {
+      if (message.status === "sent") {
         message.status = "delivered";
         message.deliveredToReceiverAt = new Date();
         updated = true;

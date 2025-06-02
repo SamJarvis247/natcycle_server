@@ -3,171 +3,106 @@ const Item = require("../../models/thingsMatch/items.model.js");
 const itemService = require("./item.service.js");
 const messageService = require("./message.service.js"); // Will be created next
 const mongoose = require("mongoose");
-const User = require("../../models/userModel.js");
-const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
-
-//helper Functions
-async function _populateMatchParticipants(match) {
-  if (!match) return null;
-  const populationPaths = [
-    {
-      path: 'itemOwnerId', // Ref to ThingsMatchUser model
-      populate: {
-        path: 'natcycleId', // Ref from ThingsMatchUser to User model
-        select: 'firstName lastName profilePicture' // Select specific fields from User
-      }
-    },
-    {
-      path: 'itemSwiperId', // Ref to ThingsMatchUser model
-      populate: {
-        path: 'natcycleId', // Ref from ThingsMatchUser to User model
-        select: 'firstName lastName profilePicture'
-      }
-    },
-    {
-      path: 'itemId', // Ref to Item model
-      select: 'name itemImages category' // Select specific fields from Item
-    }
-  ];
-
-  const populatedMatch = await match.populate(populationPaths);
-
-  // Helper function to format participant details from the populated ThingsMatchUser object.
-  const formatParticipant = (thingsMatchUserInstance) => {
-    if (!thingsMatchUserInstance) return null;
-
-    const user = thingsMatchUserInstance.natcycleId;
-
-    if (!user || typeof user !== 'object') {
-      return {
-        thingsMatchId: thingsMatchUserInstance._id,
-        userId: user,
-        firstName: null,
-        lastName: null,
-        name: 'User data incomplete',
-        profilePicture: null,
-      };
-    }
-
-    return {
-      thingsMatchId: thingsMatchUserInstance._id,
-      userId: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
-      profilePicture: user.profilePicture?.url || null,
-    };
-  };
-
-  const finalObject = populatedMatch.toObject({ virtuals: true });
-
-  // Add the formatted participant details to the final object.
-  finalObject.itemOwnerDetails = formatParticipant(populatedMatch.itemOwnerId);
-  finalObject.itemSwiperDetails = formatParticipant(populatedMatch.itemSwiperId);
-
-  // If itemId is populated, format it as well
-  if (populatedMatch.itemId) {
-    finalObject.itemDetails = {
-      _id: populatedMatch.itemId._id,
-      name: populatedMatch.itemId.name,
-      itemImages: populatedMatch.itemId.itemImages,
-      category: populatedMatch.itemId.category,
-    };
-  } else {
-    finalObject.itemDetails = null;
-  }
-
-  // Remove the original populated fields to avoid redundancy
-  delete finalObject.itemOwnerId;
-  delete finalObject.itemSwiperId;
-  delete finalObject.itemId;
-
-  // Return the final object with all necessary details populated
-  return finalObject;
-}
 
 // Called when an ItemSwiper swipes right and sends a default message
-async function createMatchOnSwipeAndSendDefaultMessage(itemId, swiperId, defaultMessageContent) {
+async function createMatchOnSwipeAndSendDefaultMessage(
+  itemId,
+  swiperId,
+  defaultMessageContent
+) {
   try {
     const item = await itemService.getItemById(itemId);
     if (!item) throw new Error("Item not found.");
 
     const itemOwnerId = item.userId._id.toString();
-    if (itemOwnerId === swiperId.toString()) {
+    if (itemOwnerId === swiperId)
       throw new Error("Cannot show interest in your own item.");
-    }
 
-    let existingMatch = await Match.findOne({ itemId, itemOwnerId, itemSwiperId: swiperId });
+    // Check if interest already expressed by this swiper for this item
+    let existingMatch = await Match.findOne({
+      itemId,
+      itemOwnerId,
+      interestedUserId: swiperId,
+    });
 
     if (existingMatch && existingMatch.status !== "unmatched") {
-      throw new Error("Interest already registered or match active for this item by you.");
+      // Allow re-interest if previously unmatched
+      // If interest exists and is active (pending/matched/blocked), don't create new, just return existing or error
+      // Depending on exact flow, might allow sending another message if already pending
+      throw new Error(
+        "Interest already registered or match active for this item by you."
+      );
     }
 
+    // If match was 'unmatched', we can create a new interaction or update existing one.
+    // For simplicity, let's assume a new interaction cycle starts.
     if (existingMatch && existingMatch.status === "unmatched") {
-      existingMatch.status = "pendingInterest";
-      existingMatch.lastMessageAt = new Date();
-      existingMatch.defaultMessageSent = false;
+      // Option: reuse and update status, or create new. Let's update for now.
+      existingMatch.status = "pendingInterest"; // Swiper shows interest again
+      existingMatch.lastMessageAt = new Date(); // Will be updated by message send
+      await existingMatch.save();
     } else {
       existingMatch = new Match({
         itemId,
         itemOwnerId,
-        itemSwiperId: swiperId,
-        status: "pendingInterest",
+        interestedUserId: swiperId,
+        status: "pendingInterest", // Swiper shows interest, owner needs to see message and respond
       });
+      await existingMatch.save();
     }
-    await existingMatch.save();
+
+    // Increment item's interest count
     await itemService.updateItemInterest(itemId, "increment");
 
-    const defaultMsg = await messageService.sendMessage(
+    // Send the default message from swiper to item owner
+    const message = await messageService.sendMessage(
       existingMatch._id.toString(),
-      swiperId.toString(),
+      swiperId,
       itemOwnerId,
       defaultMessageContent,
       "default"
     );
 
-    existingMatch.lastMessageAt = defaultMsg.createdAt;
-    existingMatch.defaultMessageSent = true;
+    existingMatch.lastMessageAt = message.createdAt; // Ensure match has latest message timestamp
     await existingMatch.save();
 
-    // const fullyPopulatedMatch = await _populateMatchParticipants(existingMatch);
-
     return {
+      message: "Interest and default message sent successfully.",
       match: existingMatch,
-      message: defaultMsg,
-      successMessage: "Interest and default message sent successfully."
+      firstMessage: message,
     };
   } catch (error) {
-    console.error("Error creating match on swipe:", error);
-    throw new Error(`Failed to create match on swipe: ${error.message}`);
+    console.error("Error in createMatchOnSwipeAndSendDefaultMessage:", error);
+    throw new Error(
+      "Failed to register interest and send message: " + error.message
+    );
   }
 }
 
+// Called by ItemOwner when they respond to an interest, effectively matching.
 async function confirmMatch(matchId, ownerId) {
   try {
-    let match = await Match.findById(matchId);
+    const match = await Match.findById(matchId);
     if (!match) throw new Error("Match not found.");
 
-    if (match.itemOwnerId.toString() !== ownerId.toString()) {
+    if (match.itemOwnerId.toString() !== ownerId) {
       throw new Error("Only the item owner can confirm this match.");
     }
 
-    let message = "Match already confirmed.";
     if (match.status === "pendingInterest") {
-      match.status = "active";
+      match.status = "matched";
       match.matchedAt = new Date();
       await match.save();
-      // TODO: Send notification to swiper that owner has matched (handled by controller via socket).
-      message = "Match confirmed. You can now chat.";
-    } else if (match.status !== "active") {
+      // TODO: Send notification to swiper that owner has matched.
+      return { message: "Match confirmed. You can now chat.", match };
+    } else if (match.status === "matched") {
+      return { message: "Already matched.", match };
+    } else {
       throw new Error(`Cannot confirm match from status: ${match.status}`);
     }
-
-    return { message, match }
-
   } catch (error) {
     console.error("Error confirming match:", error);
-    throw new Error(`Failed to confirm match: ${error.message}`);
+    throw new Error("Failed to confirm match: " + error.message);
   }
 }
 
@@ -190,6 +125,8 @@ async function updateMatchStatus(matchId, newStatus, userId) {
       // Additional logic for blocking
     } else if (newStatus === "unmatched") {
       match.unmatchedAt = new Date();
+      // If the match was 'matched' or 'pendingInterest' and is now 'unmatched',
+      // decrement interest count for the item.
       if (["matched", "pendingInterest"].includes(oldStatus)) {
         await itemService.updateItemInterest(
           match.itemId._id.toString(),
@@ -210,102 +147,28 @@ async function updateMatchStatus(matchId, newStatus, userId) {
 async function getUserMatches(userId) {
   try {
     const matches = await Match.find({
-      $or: [{ itemOwnerId: userId }, { itemSwiperId: userId }],
-      status: { $ne: "unmatched" }
+      $or: [{ itemOwnerId: userId }, { interestedUserId: userId }],
+      status: { $in: ["pendingInterest", "matched"] }, // Active matches
     })
-      .populate('itemId', 'name itemImages category')
+      .populate("itemId itemOwnerId interestedUserId")
       .sort({ lastMessageAt: -1, updatedAt: -1 });
-
-    const populatedMatches = await Promise.all(matches.map(async (match) => {
-      const populatedMatch = await _populateMatchParticipants(match);
-      if (!populatedMatch) return null;
-
-      // Check if the user is part of the match
-      if (populatedMatch.itemOwnerDetails.thingsMatchId.toString() === userId.toString() ||
-        populatedMatch.itemSwiperDetails.thingsMatchId.toString() === userId.toString()) {
-        return populatedMatch;
-      }
-      return null;
-    }));
-    // Filter out null matches
-    return populatedMatches.filter(match => match !== null);
+    return matches;
   } catch (error) {
     console.error("Error fetching user matches:", error);
     throw new Error("Failed to fetch user matches: " + error.message);
   }
 }
 
-async function getMatchById(matchId, requestingUserId) {
+async function getMatchById(matchId) {
   try {
-    const match = await Match.findById(matchId)
-      .populate('itemId', 'name itemImages location category description');
-
-    if (!match) {
-      return null;
-    }
-    // Authorization: check if requestingUserId is part of the match
-    if (match.itemOwnerId.toString() !== requestingUserId.toString() &&
-      match.itemSwiperId.toString() !== requestingUserId.toString()) {
-      throw new Error("User not authorized to view this match.");
-    }
-
-    return match.toObject();
+    const match = await Match.findById(matchId).populate(
+      "itemId itemOwnerId interestedUserId"
+    );
+    if (!match) throw new Error("Match not found");
+    return match;
   } catch (error) {
     console.error(`Error fetching match by ID ${matchId}:`, error);
-    throw new Error(`Failed to fetch match details: ${error.message}`);
-  }
-}
-
-
-//get userCreated items with matches
-async function getUserCreatedItemsWithMatches(userId) {
-  try {
-    const items = await Item.find({ creatorId: userId });
-    const itemIds = items.map(item => item._id);
-    const matches = await Match.find({
-      itemOwnerId: userId,
-      status: { $in: ["pendingInterest", "matched"] },
-      itemId: { $in: itemIds }
-    }).populate("itemId itemOwnerId itemSwiperId");
-    console.log(matches.length, "matches found for user:", userId);
-    if (matches.length === 0) {
-      return {
-        message: "No matches found for your created items.",
-        items: [],
-        matches: []
-      };
-    }
-  } catch (error) {
-    console.error("Error fetching user created items with matches:", error);
-    throw new Error("Failed to fetch user created items with matches: " + error.message);
-  }
-}
-
-async function getMatchesForItem(itemId) {
-  try {
-    const matches = await Match.find({ itemId, status: "matched" })
-      .sort({ matchedAt: -1 });
-
-    const populatedMatches = await Promise.all(matches.map(async (match) => {
-      const matchObject = match.toObject() ? match.toObject() : { ...match }
-      let ID = match.itemOwnerId ? match.itemOwnerId : match.itemOwnerId._id;
-      let itemSwiperId = match.itemSwiperId ? match.itemSwiperId : match.itemSwiperId._id;
-      //find User
-      const allCalls = await Promise.all([User.findOne({ thingsMatchAccount: ID }), User.findOne({ thingsMatchAccount: itemSwiperId })]);
-
-      allCalls[0] ?
-        matchObject.itemOwnerId = allCalls[0]._id :
-        matchObject.itemOwnerId = null;
-      allCalls[1] ?
-        matchObject.itemSwiperId = allCalls[1]._id :
-        matchObject.itemSwiperId = null;
-
-      return matchObject;
-    }));
-    return populatedMatches;
-  } catch (error) {
-    console.error("Error fetching matches for item:", error);
-    throw new Error("Failed to fetch matches for item: " + error.message);
+    throw new Error("Failed to fetch match details");
   }
 }
 
@@ -315,6 +178,4 @@ module.exports = {
   updateMatchStatus,
   getUserMatches,
   getMatchById,
-  getUserCreatedItemsWithMatches,
-  getMatchesForItem
 };

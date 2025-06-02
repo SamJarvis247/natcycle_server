@@ -106,16 +106,15 @@ async function getItemsToSwipe(
     // }
     // Removed user.interests logic as per new flow (swiping shows all items meeting criteria)
 
-    let items = await Item.find(fetchItemQuery)
-    console.log("🚀 ~ items:", items.length)
+    let items = await Item.find(fetchItemQuery);
+    console.log("🚀 ~ items:", items.length);
 
     if (!items || items.length === 0) {
       //run query again but with a different way
       fetchItemQuery = {
         userId: { $ne: mongoose.Types.ObjectId(thingsMatchUserId) },
       };
-      items = await Item.find(fetchItemQuery)
-        .sort({ createdAt: -1 });
+      items = await Item.find(fetchItemQuery).sort({ createdAt: -1 });
       if (!items || items.length === 0) {
         return { message: "No items found", items: [] };
       }
@@ -123,26 +122,28 @@ async function getItemsToSwipe(
       return items;
     }
 
-    const populatedItems = await Promise.all(items.map(async (item) => {
-      const itemObject = item.toObject ? item.toObject() : { ...item };
-      let ID = itemObject.userId;
-      const NatUser = await User.findOne({ thingsMatchAccount: ID });
+    const populatedItems = await Promise.all(
+      items.map(async (item) => {
+        const itemObject = item.toObject ? item.toObject() : { ...item };
+        let ID = itemObject.userId;
+        const NatUser = await User.findOne({ thingsMatchAccount: ID });
 
-      if (NatUser) {
-        itemObject.userDetails = {
-          name: `${NatUser.firstName} ${NatUser.lastName}`,
-          email: NatUser.email,
-          profilePicture: NatUser.profilePicture?.url || null,
-        };
-      } else {
-        itemObject.userDetails = {
-          name: "Unknown User",
-          email: null,
-          profilePicture: null,
-        };
-      }
-      return itemObject;
-    }));
+        if (NatUser) {
+          itemObject.userDetails = {
+            name: `${NatUser.firstName} ${NatUser.lastName}`,
+            email: NatUser.email,
+            profilePicture: NatUser.profilePicture?.url || null,
+          };
+        } else {
+          itemObject.userDetails = {
+            name: "Unknown User",
+            email: null,
+            profilePicture: null,
+          };
+        }
+        return itemObject;
+      })
+    );
 
     return { items: populatedItems };
   } catch (error) {
@@ -231,22 +232,24 @@ async function getCreatedItems(thingsMatchUserId) {
   try {
     const items = await Item.find({ userId: thingsMatchUserId });
     console.log(items.length, "items found for user:", thingsMatchUserId);
-    const populatedItems = await Promise.all(items.map(async (item) => {
-      const itemObject = item.toObject ? item.toObject() : { ...item };
-      let ID = itemObject.userId;
-      //check the matches Database
-      const hasInterests = await Match.find({
-        itemOwnerId: ID,
-        itemId: itemObject._id
-      });
-      if (hasInterests.length) {
-        itemObject.hasInterests = {
-          interest: hasInterests.map(match => match._id),
-          status: hasInterests.length > 0
-        };
-      }
-      return itemObject;
-    }));
+    const populatedItems = await Promise.all(
+      items.map(async (item) => {
+        const itemObject = item.toObject ? item.toObject() : { ...item };
+        let ID = itemObject.userId;
+        //check the matches Database
+        const hasInterests = await Match.find({
+          itemOwnerId: ID,
+          itemId: itemObject._id,
+        });
+        if (hasInterests.length) {
+          itemObject.hasInterests = {
+            interest: hasInterests.map((match) => match._id),
+            status: hasInterests.length > 0,
+          };
+        }
+        return itemObject;
+      })
+    );
 
     return { items: populatedItems };
   } catch (error) {
@@ -260,23 +263,64 @@ async function getItemById(itemId) {
     const item = await Item.findById(itemId);
     if (!item) throw new Error("Item not found");
 
-    const itemObject = item.toObject();
-    const ID = itemObject.userId;
-    const NatUser = await User.findOne({ thingsMatchAccount: ID });
-
-    if (NatUser) {
-      itemObject.creatorDetails = {
-        name: `${NatUser.firstName} ${NatUser.lastName}`,
-        email: NatUser.email,
-        profilePicture: NatUser.profilePicture?.url || null,
-      };
-    } else {
-      itemObject.creatorDetails = {
-        name: "Unknown User",
-        email: null,
-        profilePicture: null,
+    const itemObject = item.toObject ? item.toObject() : { ...item };
+    let ID = itemObject.userId;
+    let UserDetails = await User.findOne({ thingsMatchAccount: ID });
+    const hasInterests = await Match.find({
+      itemOwnerId: ID,
+      itemId: itemObject._id,
+    });
+    if (!hasInterests.length) {
+      itemObject.hasInterests = {
+        interest: null,
+        status: false,
       };
     }
+    //populate again
+    const populateInterests = await Promise.all(
+      hasInterests.map(async (match) => {
+        const matchObject = match.toObject ? match.toObject() : { ...match };
+        let itemOwnerId = matchObject.itemOwnerId;
+        let itemSwiperId = matchObject.interestedUserId;
+        let PeopleDetails = await Promise.all([
+          User.findOne({ thingsMatchAccount: itemOwnerId }),
+          User.findOne({ thingsMatchAccount: itemSwiperId }),
+        ]);
+        matchObject.itemOwnerDetails = {
+          name: PeopleDetails.length
+            ? PeopleDetails[0].firstName + " " + PeopleDetails[0].lastName
+            : "Unknown User",
+          email: PeopleDetails.length ? PeopleDetails[0].email : null,
+          profilePicture: PeopleDetails.length
+            ? PeopleDetails[0].profilePicture?.url
+            : null,
+        };
+        matchObject.matchId = matchObject._id;
+        matchObject.itemSwiperDetails = {
+          name: PeopleDetails.length
+            ? PeopleDetails[1].firstName + " " + PeopleDetails[1].lastName
+            : "Unknown User",
+          email: PeopleDetails.length ? PeopleDetails[1].email : null,
+          profilePicture: PeopleDetails.length
+            ? PeopleDetails[1].profilePicture?.url
+            : null,
+        };
+
+        return matchObject;
+      })
+    );
+
+    itemObject.hasInterests = {
+      interest: populateInterests,
+      status: populateInterests.length > 0,
+    };
+    itemObject.userDetails = {
+      name: UserDetails
+        ? UserDetails.firstName + " " + UserDetails.lastName
+        : "Unknown User",
+      email: UserDetails ? UserDetails.email : null,
+      profilePicture: UserDetails ? UserDetails.profilePicture?.url : null,
+    };
 
     return itemObject;
   } catch (error) {
@@ -294,7 +338,12 @@ async function updateItem(itemId, data, thingsMatchUserId, files) {
     if (item.userId.toString() !== thingsMatchUserId.toString()) {
       throw new Error("User not authorized to update this item");
     }
-    const [name, description, category, address] = [data.name, data.description, data.category, data.address];
+    const [name, description, category, address] = [
+      data.name,
+      data.description,
+      data.category,
+      data.address,
+    ];
     // if (!name || !description || !category || !address) {
     //   throw new Error("All fields are required");
     // }
@@ -313,10 +362,10 @@ async function updateItem(itemId, data, thingsMatchUserId, files) {
       }
     }
 
-    name ? item.name = name : null;
-    description ? item.description = description : null;
-    category ? item.category = category : null;
-    address ? item.location = location : null;
+    name ? (item.name = name) : null;
+    description ? (item.description = description) : null;
+    category ? (item.category = category) : null;
+    address ? (item.location = location) : null;
     item.userId = thingsMatchUserId;
     item.discoveryStatus = "visible";
     item.interestCount = 0;
@@ -340,8 +389,7 @@ async function updateItem(itemId, data, thingsMatchUserId, files) {
       item: item.id,
       imagesUploaded: item.itemImages.length,
     };
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error updating item:", error);
     throw new Error("Failed to update item: " + error.message);
   }
@@ -355,5 +403,5 @@ module.exports = {
   setItemDiscoveryStatus,
   deleteItem,
   getCreatedItems,
-  getItemById
+  getItemById,
 };
