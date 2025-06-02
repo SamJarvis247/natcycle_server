@@ -1,5 +1,6 @@
 const Match = require("../../models/thingsMatch/match.model.js");
 const Item = require("../../models/thingsMatch/items.model.js");
+const Message = require("../../models/thingsMatch/message.model.js");
 const itemService = require("./item.service.js");
 const messageService = require("./message.service.js"); // Will be created next
 const mongoose = require("mongoose");
@@ -147,12 +148,63 @@ async function updateMatchStatus(matchId, newStatus, userId) {
 async function getUserMatches(userId) {
   try {
     const matches = await Match.find({
-      $or: [{ itemOwnerId: userId }, { interestedUserId: userId }],
-      status: { $in: ["pendingInterest", "matched"] }, // Active matches
-    })
-      .populate("itemId itemOwnerId interestedUserId")
-      .sort({ lastMessageAt: -1, updatedAt: -1 });
-    return matches;
+      $or: [{ itemOwnerId: userId }, { itemSwiperId: userId }],
+      status: { $in: ["pendingInterest", "active"] },
+    });
+
+    const populatedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const matchObject = match.toObject ? match.toObject() : { ...match };
+        let matchID = matchObject._id;
+        let itemOwnerID = matchObject.itemOwnerId;
+        let itemSwiperID = matchObject.itemSwiperId;
+        let itemID = matchObject.itemId;
+
+        const DETAILS = await Promise.all([
+          User.findOne({
+            thingsMatchAccount: itemOwnerID,
+          }),
+          User.findOne({
+            thingsMAtchAccount: itemSwiperID,
+          }),
+          Message.findOne({
+            matchId: matchID,
+          }),
+          Item.findById(itemID),
+        ]);
+
+        matchObject.itemDetails = {
+          item:
+            DETAILS.length && DETAILS[3].length ? DETAILS[3] : "Unknown Item",
+        };
+        matchObject.itemOwnerDetails = {
+          name:
+            DETAILS.length && DETAILS[0].length
+              ? DETAILS[0].firstName + " " + DETAILS[0].lastName
+              : "Unknown User",
+          email: DETAILS.length ? DETAILS[0].email : null,
+          profilePicture: DETAILS.length
+            ? DETAILS[0].profilePicture?.url
+            : null,
+        };
+        matchObject.itemSwiperDetails = {
+          name: DETAILS.length
+            ? DETAILS[1].firstName + " " + DETAILS[1].lastName
+            : "Unknown User",
+          email: DETAILS.length ? DETAILS[1].email : null,
+          profilePicture: DETAILS.length
+            ? DETAILS[1].profilePicture?.url
+            : null,
+        };
+        matchObject.hasMessages = {
+          status: DETAILS[2] ? true : false,
+        };
+
+        return matchObject;
+      })
+    );
+
+    return populatedMatches;
   } catch (error) {
     console.error("Error fetching user matches:", error);
     throw new Error("Failed to fetch user matches: " + error.message);
