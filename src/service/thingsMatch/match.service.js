@@ -1,6 +1,7 @@
 const Match = require("../../models/thingsMatch/match.model.js");
 const Item = require("../../models/thingsMatch/items.model.js");
 const Message = require("../../models/thingsMatch/message.model.js");
+const User = require("../../models/userModel.js");
 const itemService = require("./item.service.js");
 const messageService = require("./message.service.js"); // Will be created next
 const mongoose = require("mongoose");
@@ -172,16 +173,13 @@ async function getUserMatches(userId) {
           }),
           Item.findById(itemID),
         ]);
-
         matchObject.itemDetails = {
-          item:
-            DETAILS.length && DETAILS[3].length ? DETAILS[3] : "Unknown Item",
+          item: DETAILS.length ? DETAILS[3] : "Unknown Item",
         };
         matchObject.itemOwnerDetails = {
-          name:
-            DETAILS.length && DETAILS[0].length
-              ? DETAILS[0].firstName + " " + DETAILS[0].lastName
-              : "Unknown User",
+          name: DETAILS.length
+            ? DETAILS[0].firstName + " " + DETAILS[0].lastName
+            : "Unknown User",
           email: DETAILS.length ? DETAILS[0].email : null,
           profilePicture: DETAILS.length
             ? DETAILS[0].profilePicture?.url
@@ -198,6 +196,13 @@ async function getUserMatches(userId) {
         };
         matchObject.hasMessages = {
           status: DETAILS[2] ? true : false,
+        };
+
+        matchObject.userRole = {
+          itemOwner:
+            itemOwnerID.toString() === userId.toString() ? true : false,
+          itemSwiper:
+            itemSwiperID.toString() === userId.toString() ? true : false,
         };
 
         return matchObject;
