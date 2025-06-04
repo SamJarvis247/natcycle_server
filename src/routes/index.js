@@ -18,6 +18,7 @@ const thingsMatchAuthRoutes = require("./thingsMatch/auth.route");
 const thingsMatchItemRoutes = require("./thingsMatch/item.route");
 const thingsMatchMatchRoutes = require("./thingsMatch/match.route.js");
 const thingsMatchMessageRoutes = require("./thingsMatch/message.route.js");
+const thingsMatchAdminRoutes = require("./thingsMatch/admin/admin.routes.js");
 
 router.use("/auth", authRoutes);
 router.use("/profile", userRoutes);
@@ -37,5 +38,7 @@ router.use(`${thingsMatchPrefix}/auth`, thingsMatchAuthRoutes);
 router.use(`${thingsMatchPrefix}/items`, thingsMatchItemRoutes);
 router.use(`${thingsMatchPrefix}/matches`, thingsMatchMatchRoutes);
 router.use(`${thingsMatchPrefix}/messages`, thingsMatchMessageRoutes);
+//TM admin routes
+router.use(`${thingsMatchPrefix}/TMadmin`, thingsMatchAdminRoutes);
 
 module.exports = router;

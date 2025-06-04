@@ -141,8 +141,31 @@ async function getUser(thingsMatchAccountId) {
   return user;
 }
 
+//admin services
+async function getAllUsers() {
+  const users = await ThingsMatchUser.find().populate(
+    "natcycleId",
+    "firstName lastName email profilePicture phoneNumber"
+  );
+  return users;
+}
+async function getUserById(thingsMatchAccountId) {
+  const user = await ThingsMatchUser.findById(thingsMatchAccountId).populate(
+    "natcycleId",
+    "firstName lastName email profilePicture phoneNumber"
+  );
+
+  if (!user) {
+    throw new Error("ThingsMatch user not found");
+  }
+
+  return user;
+}
+
 module.exports = {
   thingsMatchAccount,
   updateThingsMatchAccount,
   getUser,
+  getAllUsers,
+  getUserById,
 };
