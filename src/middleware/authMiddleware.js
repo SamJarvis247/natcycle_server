@@ -26,17 +26,14 @@ exports.isAuth = async (req, res, next) => {
 
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     req.user = await userModel.findById(verified._id);
-    console.log("🚀 ~ exports.isAuth= ~ user:", req.user);
-
     req.id = verified._id;
 
     // Check if user exists
     if (!req.user) {
-      res.status(404).json({
-        message: "User Not Found",
-        error: "User not found in Natcycle collection",
+      return res.status(401).json({
+        message: "Invalid Token",
+        error: "User not found",
       });
-      return;
     }
 
     next();
