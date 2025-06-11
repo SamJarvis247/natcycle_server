@@ -229,10 +229,62 @@ async function getMatchById(matchId) {
   }
 }
 
+//Admin
+async function adminGetAllMatches() {
+  const matches = await Match.find();
+  const populatedMatches = await Promise.all(
+    matches.map(async (match) => {
+      const matchObject = match.toObject ? match.toObject() : { ...match };
+      let matchID = matchObject._id;
+      let itemOwnerID = matchObject.itemOwnerId;
+      let itemSwiperID = matchObject.itemSwiperId;
+      let itemID = matchObject.itemId;
+
+      const DETAILS = await Promise.all([
+        User.findOne({
+          thingsMatchAccount: itemOwnerID,
+        }),
+        User.findOne({
+          thingsMAtchAccount: itemSwiperID,
+        }),
+        Message.findOne({
+          matchId: matchID,
+        }),
+        Item.findById(itemID),
+      ]);
+      matchObject.itemDetails = {
+        item: DETAILS.length ? DETAILS[3] : "Unknown Item",
+      };
+      matchObject.itemOwnerDetails = {
+        name: DETAILS.length
+          ? DETAILS[0].firstName + " " + DETAILS[0].lastName
+          : "Unknown User",
+        email: DETAILS.length ? DETAILS[0].email : null,
+        profilePicture: DETAILS.length ? DETAILS[0].profilePicture?.url : null,
+      };
+      matchObject.itemSwiperDetails = {
+        name: DETAILS.length
+          ? DETAILS[1].firstName + " " + DETAILS[1].lastName
+          : "Unknown User",
+        email: DETAILS.length ? DETAILS[1].email : null,
+        profilePicture: DETAILS.length ? DETAILS[1].profilePicture?.url : null,
+      };
+      matchObject.hasMessages = {
+        status: DETAILS[2] ? true : false,
+      };
+
+      return matchObject;
+    })
+  );
+
+  return populatedMatches;
+}
+
 module.exports = {
   createMatchOnSwipeAndSendDefaultMessage,
   confirmMatch,
   updateMatchStatus,
   getUserMatches,
   getMatchById,
+  adminGetAllMatches,
 };
