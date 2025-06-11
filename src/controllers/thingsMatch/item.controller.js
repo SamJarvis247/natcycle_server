@@ -83,7 +83,6 @@ const deleteItem = catchAsync(async (req, res, next) => {
   });
 });
 
-
 const updateItem = catchAsync(async (req, res, next) => {
   if (!req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
@@ -116,6 +115,18 @@ const getCreatedItems = catchAsync(async (req, res, next) => {
   });
 });
 
+//ADMIN
+const adminGetAllItems = catchAsync(async (req, res, next) => {
+  const items = await itemService.adminGetAllItems();
+  res.status(200).json({
+    status: "success",
+    results: items.length,
+    data: {
+      items,
+    },
+  });
+});
+
 module.exports = {
   addItem,
   getItemsToSwipe,
@@ -124,4 +135,5 @@ module.exports = {
   deleteItem,
   updateItem,
   getCreatedItems,
+  adminGetAllItems,
 };

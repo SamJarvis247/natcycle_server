@@ -8,8 +8,6 @@ const CACHE_KEYS = require("./cacheKeys.js");
 async function createMatchOnSwipe(itemId, swiperId, swipeDirection) {
   try {
     if (swipeDirection !== "right") {
-      // Only a 'right' swipe can potentially create a match immediately
-      // 'left' swipes are just recorded and don't lead to a match from the swiper's side
       return { message: "No match created for left swipe.", match: null };
     }
 
@@ -124,21 +122,12 @@ async function updateMatchStatus(matchId, newStatus, userId) {
 
 async function getUserMatches(userId) {
   try {
-    const cacheKey = CACHE_KEYS.USER_MATCHES(userId);
-    let matches = await RedisService.get(cacheKey);
-
-    if (matches) {
-      return matches;
-    }
-
-    matches = await Match.find({
-      $or: [{ itemOwnerId: userId }, { interestedUserId: userId }],
-      status: { $in: ["pendingConfirmation", "matched"] }, // Or other relevant statuses
+    const matches = await Match.find({
+      $or: [{ itemOwnerId: userId }, { itemSwiperId: userId }],
+      status: { $in: ["pendingConfirmation", "matched"] },
     })
       .populate("itemId itemOwnerId interestedUserId")
       .sort({ updatedAt: -1 });
-
-    await RedisService.set(cacheKey, matches, 3600); // Cache for 1 hour
 
     return matches;
   } catch (error) {
@@ -165,6 +154,13 @@ async function getMatchById(matchId) {
     throw new Error("Failed to fetch match details");
   }
 }
+
+// async function adminGetAllMatches() {
+//   try{
+//     const matches = await Match.find()
+
+//   }
+// }
 
 module.exports = {
   createMatchOnSwipe,

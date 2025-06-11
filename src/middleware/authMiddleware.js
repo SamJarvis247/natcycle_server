@@ -26,6 +26,7 @@ exports.isAuth = async (req, res, next) => {
 
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
     req.user = await userModel.findById(verified._id);
+    console.log("🚀 ~ exports.isAuth= ~ user:", req.user);
 
     req.id = verified._id;
 
@@ -35,6 +36,7 @@ exports.isAuth = async (req, res, next) => {
         message: "User Not Found",
         error: "User not found in Natcycle collection",
       });
+      return;
     }
 
     next();

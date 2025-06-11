@@ -18,11 +18,16 @@ const sendMessage = catchAsync(async (req, res, next) => {
     return next(new AppError("Message content cannot be empty.", 400));
   }
 
-  const savedMessage = await messageService.sendMessage(matchId, senderThingsMatchId, receiverId, content);
+  const savedMessage = await messageService.sendMessage(
+    matchId,
+    senderThingsMatchId,
+    receiverId,
+    content
+  );
 
-  const io = req.app.get('socketio');
+  const io = req.app.get("socketio");
   if (io && savedMessage) {
-    io.to(matchId).emit('receiveMessage', savedMessage); // Emits populated message
+    io.to(matchId).emit("receiveMessage", savedMessage); // Emits populated message
   }
 
   res.status(201).json({
@@ -40,7 +45,12 @@ const getMessagesForMatch = catchAsync(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
 
-  const result = await messageService.getMessagesForMatch(matchId, userThingsMatchId, page, limit);
+  const result = await messageService.getMessagesForMatch(
+    matchId,
+    userThingsMatchId,
+    page,
+    limit
+  );
   res.status(200).json({
     status: "success",
     data: result,
@@ -58,15 +68,24 @@ const updateMessageStatus = catchAsync(async (req, res, next) => {
   const { messageId, status } = req.body; // Expect messageId and status in body
 
   if (!messageId || !status) {
-    return next(new AppError("Message ID and new status are required in the body.", 400));
+    return next(
+      new AppError("Message ID and new status are required in the body.", 400)
+    );
   }
 
-  const updatedMessage = await messageService.updateMessageStatus(messageId, userThingsMatchId, status);
+  const updatedMessage = await messageService.updateMessageStatus(
+    messageId,
+    userThingsMatchId,
+    status
+  );
 
-  const io = req.app.get('socketio');
+  const io = req.app.get("socketio");
   if (io && updatedMessage) {
     // Use matchId from the updatedMessage object for broadcasting to the correct room
-    io.to(updatedMessage.matchId.toString()).emit('messageStatusUpdated', updatedMessage);
+    io.to(updatedMessage.matchId.toString()).emit(
+      "messageStatusUpdated",
+      updatedMessage
+    );
   }
 
   res.status(200).json({

@@ -13,25 +13,31 @@ const swipeAndSendDefaultMessage = catchAsync(async (req, res, next) => {
     return next(new AppError("Default message content is required.", 400));
   }
 
-  const result = await matchService.createMatchOnSwipeAndSendDefaultMessage(itemId, req.TMID, defaultMessageContent);
+  const result = await matchService.createMatchOnSwipeAndSendDefaultMessage(
+    itemId,
+    req.TMID,
+    defaultMessageContent
+  );
 
-  const io = req.app.get('socketio');
+  const io = req.app.get("socketio");
   if (io && result.match && result.message) {
     const itemOwnerTMID = result.match.itemOwnerId.toString();
     const matchIdForRoom = result.match._id.toString();
 
     // Notify item owner about new pending interest
-    const ownerSockets = Array.from(io.sockets.sockets.values()).filter(s => s.TMID === itemOwnerTMID);
-    ownerSockets.forEach(ownerSocket => {
-      io.to(ownerSocket.id).emit('newPendingInterest', {
+    const ownerSockets = Array.from(io.sockets.sockets.values()).filter(
+      (s) => s.TMID === itemOwnerTMID
+    );
+    ownerSockets.forEach((ownerSocket) => {
+      io.to(ownerSocket.id).emit("newPendingInterest", {
         match: result.match, // Populated match
-        message: result.message // Populated message
+        message: result.message, // Populated message
       });
     });
 
     // Emit the default message to the room. Both swiper and owner (if they join) will get it.
     // Client needs to handle joining this room upon swipe or notification.
-    io.to(matchIdForRoom).emit('receiveMessage', result.message);
+    io.to(matchIdForRoom).emit("receiveMessage", result.message);
   }
 
   res.status(201).json({
@@ -47,17 +53,19 @@ const confirmMatchByOwner = catchAsync(async (req, res, next) => {
   const { matchId } = req.params;
   const result = await matchService.confirmMatch(matchId, req.TMID); // result = { message, match }
 
-  const io = req.app.get('socketio');
+  const io = req.app.get("socketio");
   if (io && result.match) {
     const matchIdForRoom = result.match._id.toString();
-    io.to(matchIdForRoom).emit('matchStatusUpdated', result.match);
+    io.to(matchIdForRoom).emit("matchStatusUpdated", result.match);
 
     // Specifically notify the swiper if they are connected directly (not just in room)
-    if (result.match.status === 'active') {
+    if (result.match.status === "active") {
       const swiperTMID = result.match.itemSwiperId.toString();
-      const swiperSockets = Array.from(io.sockets.sockets.values()).filter(s => s.TMID === swiperTMID);
-      swiperSockets.forEach(swiperSocket => {
-        io.to(swiperSocket.id).emit('matchConfirmed', { match: result.match });
+      const swiperSockets = Array.from(io.sockets.sockets.values()).filter(
+        (s) => s.TMID === swiperTMID
+      );
+      swiperSockets.forEach((swiperSocket) => {
+        io.to(swiperSocket.id).emit("matchConfirmed", { match: result.match });
       });
     }
   }
@@ -75,7 +83,9 @@ const getMatchDetails = catchAsync(async (req, res, next) => {
   }
   const match = await matchService.getMatchById(req.params.matchId, req.TMID);
   if (!match) {
-    return next(new AppError("No match found with that ID or not authorized", 404));
+    return next(
+      new AppError("No match found with that ID or not authorized", 404)
+    );
   }
   res.status(200).json({
     status: "success",
@@ -108,7 +118,6 @@ const getMatchesForItem = catchAsync(async (req, res, next) => {
     data: { matches },
   });
 });
-
 
 module.exports = {
   swipeAndSendDefaultMessage,

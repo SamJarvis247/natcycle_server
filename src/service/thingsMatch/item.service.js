@@ -395,6 +395,32 @@ async function updateItem(itemId, data, thingsMatchUserId, files) {
   }
 }
 
+async function adminGetAllItems() {
+  try {
+    const items = await Item.find({});
+    //populate again
+    const populatedItems = await Promise.all(
+      items.map(async (item) => {
+        const itemObject = item.toObject ? item.toObject() : { ...item };
+        let ID = itemObject.userId;
+        let UserDetails = await User.findOne({ thingsMatchAccount: ID });
+        itemObject.userDetails = {
+          name: UserDetails
+            ? UserDetails.firstName + " " + UserDetails.lastName
+            : "Unknown User",
+          email: UserDetails ? UserDetails.email : null,
+          profilePicture: UserDetails ? UserDetails.profilePicture?.url : null,
+        };
+        return itemObject;
+      })
+    );
+    return { items: populatedItems };
+  } catch (error) {
+    console.error("Error fetching items:", error);
+    throw new Error("Failed to fetch items: " + error.message);
+  }
+}
+
 module.exports = {
   addItem,
   updateItem,
@@ -404,4 +430,5 @@ module.exports = {
   deleteItem,
   getCreatedItems,
   getItemById,
+  adminGetAllItems,
 };
