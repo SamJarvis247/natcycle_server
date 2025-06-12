@@ -229,6 +229,56 @@ async function getMatchById(matchId) {
   }
 }
 
+async function getMatchesForItem(itemId) {
+  try {
+    const matches = await Match.find({ itemId });
+    const populatedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const matchObject = match.toObject ? match.toObject() : { ...match };
+        let matchID = matchObject._id;
+        let itemOwnerID = matchObject.itemOwnerId;
+        let itemSwiperID = matchObject.itemSwiperId;
+        let itemID = matchObject.itemId;
+
+        const DETAILS = await Promise.all([
+          User.findOne({
+            thingsMatchAccount: itemOwnerID,
+          }),
+          User.findOne({
+            thingsMAtchAccount: itemSwiperID,
+          }),
+          Message.findOne({
+            matchId: matchID,
+          }),
+          Item.findById(itemID),
+        ]);
+        matchObject.itemDetails = {
+          item: DETAILS.length ? DETAILS[3] : "Unknown Item",
+        };
+        matchObject.itemOwnerDetails = {
+          name: DETAILS.length
+            ? DETAILS[0].firstName + " " + DETAILS[0].lastName
+            : "Unknown User",
+        };
+        matchObject.itemSwiperDetails = {
+          name: DETAILS.length
+            ? DETAILS[1].firstName + " " + DETAILS[1].lastName
+            : "Unknown User",
+        };
+        matchObject.hasMessages = {
+          status: DETAILS[2] ? true : false,
+        };
+
+        return matchObject;
+      })
+    );
+    return populatedMatches;
+  } catch (error) {
+    console.error(`Error fetching matches for item ${itemId}:`, error);
+    throw new Error("Failed to fetch matches for item");
+  }
+}
+
 //Admin
 async function adminGetAllMatches() {
   const matches = await Match.find();
@@ -287,4 +337,5 @@ module.exports = {
   getUserMatches,
   getMatchById,
   adminGetAllMatches,
+  getMatchesForItem,
 };

@@ -110,6 +110,7 @@ const getMatchesForItem = catchAsync(async (req, res, next) => {
   if (!req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
   }
+  console.log(req.params);
   const { itemId } = req.params;
   const matches = await matchService.getMatchesForItem(itemId);
   res.status(200).json({
