@@ -73,18 +73,23 @@ exports.getDropOffLocations = async (req, res) => {
     const query = {};
 
     if (itemType) {
-      query.itemType = itemType;
+      query.primaryMaterialType = itemType;
     }
 
     if (id) {
       query._id = id;
     }
 
-    const dropOffLocations = await DropOffLocation.paginate(query, {
-      page,
-      limit,
-      sort: { createdAt: -1 },
+    console.log(itemType);
+    // const dropOffLocations = await DropOffLocation.find(query)
+    //   .skip((page - 1) * limit)
+    const dropOffLocations = await DropOffLocation.find({
+      primaryMaterialType: itemType,
     });
+    console.log(
+      "🚀 ~ exports.getDropOffLocations= ~ dropOffLocations:",
+      dropOffLocations
+    );
 
     res.status(200).json({
       data: dropOffLocations,
@@ -129,8 +134,7 @@ exports.getNearestDropOffLocations = async (req, res) => {
   let query = {};
 
   if (itemType) {
-    console.log(itemType);
-    query.itemType = itemType;
+    query.primaryMaterialType = itemType;
   }
 
   try {
@@ -165,8 +169,8 @@ exports.getNearestDropOffLocations = async (req, res) => {
             $maxDistance: distance,
           },
         },
-        itemtype: {
-          $nin: ["food", "plastic", "clothing"],
+        primaryMaterialType: {
+          $nin: ["food", "plastic"],
         },
       };
     }
