@@ -2,7 +2,7 @@ const Material = require("../models/materialModel");
 const User = require("../models/userModel");
 
 // Calculate CU for a specific material and quantity
-async function calculateCU(materialCategory, materialName, quantity) {
+async function calculateCU(materialCategory, materialSpecific, quantity) {
   try {
     // Find the material in the database
     let materialQuery = {
@@ -10,9 +10,8 @@ async function calculateCU(materialCategory, materialName, quantity) {
       isActive: true,
     };
 
-    // If material name is provided, use it for more specific matching
-    if (materialName) {
-      materialQuery.name = materialName;
+    if (materialSpecific) {
+      materialQuery.subCategory = materialSpecific;
     }
 
     const material = await Material.findOne(materialQuery);
@@ -39,12 +38,12 @@ async function updateUserCU(
   userId,
   materialCategory,
   quantity,
-  materialName = null
+  materialSpecific
 ) {
   try {
     const { totalCU } = await calculateCU(
       materialCategory,
-      materialName,
+      materialSpecific,
       quantity
     );
 

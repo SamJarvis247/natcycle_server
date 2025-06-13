@@ -7,19 +7,21 @@ const { catchAsync } = require("../utility/catchAsync.js");
 const cuCalculationService = require("../service/cuCalculationService");
 const User = require("../models/userModel.js");
 const Material = require("../models/materialModel.js");
+const {
+  getPrimaryTypeForSubtype,
+  getPrimaryMaterialTypes,
+} = require("../models/enums/materialTypeHierarchy.js");
 
 // add new drop off
 exports.addDropOff = async (req, res) => {
-  const { location, itemType, itemQuantity, description, campaignId } =
+  const { location, itemType, dropOffQuantity, description, campaignId } =
     req.body;
-
-  console.log("REQ BODY", req.body);
+  const isVerifiedCategory = getPrimaryMaterialTypes().includes(itemType);
+  if (!isVerifiedCategory) {
+    return res.status(400).json({ message: "Invalid item type" });
+  }
 
   const findDropOffLocation = await DropOffLocation.findById(location);
-  console.log(
-    "🚀 ~ exports.addDropOff= ~ findDropOffLocation:",
-    findDropOffLocation
-  );
 
   if (!findDropOffLocation) {
     return res.status(404).json({ message: "Drop off location not found" });
@@ -36,12 +38,17 @@ exports.addDropOff = async (req, res) => {
         });
       }
     }
+    const mainQuantity = JSON.parse(dropOffQuantity);
+    const totalQuantity = mainQuantity.reduce((acc, curr) => {
+      return acc + curr.units;
+    }, 0);
 
     const dropOff = new DropOff({
       dropOffLocation: findDropOffLocation._id,
       user: req.user._id,
       itemType,
-      itemQuantity,
+      dropOffQuantity: mainQuantity,
+      itemQuantity: totalQuantity,
       description,
       campaign: campaignId ? campaign._id : null,
     });
@@ -58,46 +65,34 @@ exports.addDropOff = async (req, res) => {
       };
     }
 
-    // After creating the drop-off, update the user's CU
-    let materialCategory = itemType;
-
-    const cu = await cuCalculationService
-      .updateUserCU(req.user._id, materialCategory, itemQuantity)
-      .then((cu) => {
-        let totalCu = cu.newTotalCU;
-
-        //append natpoints
-        cuCalculationService.updateUserNatPoints(req.user._id, totalCu);
-
-        return totalCu;
-      })
-      .catch((err) => {
-        console.log(err, "Error in CU Logic");
-        return null;
-      });
-    if (!cu) {
-      console.log("NO CU");
-    } else {
-      console.log("CU updated successfully");
-    }
-
-    dropOff.pointsEarned = cu;
+    // TODO: UDPTE CU LOGIC TO USE THE ONE FORM THE MATERIALS
+    //CU logic
+    let totalCU;
+    const user = await User.findById(req.user._id);
+    mainQuantity.forEach(async (item) => {
+      console.log("😊", item);
+      const cu = await cuCalculationService.updateUserCU(
+        user._id,
+        itemType,
+        item.units,
+        item.MaterialType
+      );
+      totalCU = (totalCU || 0) + cu.addedCU;
+      console.log("CU", cu.newTotalCU);
+      console.log("Total Cu", totalCU);
+    });
+    dropOff.pointsEarned = totalCU;
 
     await dropOff.save();
-    //update user item count
-
-    // After updating the user's CU
-    req.user.cu = req.user.cu + cu;
 
     // Update the user's item count based on the item type
-    const user = await User.findById(req.user._id);
-    if (user && user.itemsCount && itemType in user.itemsCount) {
-      user.itemsCount[itemType] += itemQuantity;
-      await user.save();
-      console.log(
-        `Updated user's ${itemType} count to ${user.itemsCount[itemType]}`
-      );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+    const userItemCount = user.itemsCount;
+    // Update the user's item count based on the item type
+    userItemCount[itemType] = (userItemCount[itemType] || 0) + totalQuantity;
+    await user.save();
 
     res.status(201).json({
       message: "Drop off request added successfully",

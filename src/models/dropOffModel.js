@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 const mongoosePaginate = require("mongoose-paginate-v2");
 const { default: materialEnum } = require("./enums/materialType");
+const {
+  getSubtypesForPrimaryType,
+  getPrimaryMaterialTypes,
+} = require("./enums/materialTypeHierarchy");
 
 const dropOffSchema = new mongoose.Schema(
   {
@@ -17,11 +21,21 @@ const dropOffSchema = new mongoose.Schema(
     itemType: {
       type: String,
       required: true,
-      enum: materialEnum,
+      enum: getPrimaryMaterialTypes(),
     },
+    dropOffQuantity: [
+      {
+        materialType: {
+          type: String,
+          enum: getSubtypesForPrimaryType(this.itemType),
+        },
+        units: {
+          type: Number,
+        },
+      },
+    ],
     itemQuantity: {
       type: Number,
-      required: true,
     },
     receipt: {
       public_id: {
