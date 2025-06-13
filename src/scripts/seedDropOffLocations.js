@@ -1,13 +1,13 @@
 const mongoose = require("mongoose");
 const { faker } = require("@faker-js/faker");
 const DropOffLocation = require("../models/dropOffLocationModel");
-const materialEnum = require("../models/enums/materialType");
+const materialEnum = require("../models/enums/materialType"); // For backward compatibility itemType
 const {
   materialTypeHierarchy,
   getPrimaryMaterialTypes,
   getSubtypesForPrimaryType,
   isPrimaryType,
-  getPrimaryTypeForSubtype
+  getPrimaryTypeForSubtype,
 } = require("../models/enums/materialTypeHierarchy");
 
 require("dotenv").config();
@@ -21,7 +21,7 @@ const LOCATIONS_CONFIG = {
     country: "Nigeria",
     city: "Port Harcourt",
     state: "Rivers State",
-    weight: 5, // Higher weight for more PH locations
+    weight: 5,
   },
   NIGERIA_LAGOS: {
     lat: 6.5244,
@@ -51,12 +51,12 @@ const LOCATIONS_CONFIG = {
   },
   USA_NEW_YORK: {
     lat: 40.7128,
-    lng: -74.0060,
+    lng: -74.006,
     namePrefix: "NYC",
     country: "USA",
     city: "New York",
     state: "NY",
-    weight: 2,
+    weight: 3,
   },
   UK_MANCHESTER: {
     lat: 53.4808,
@@ -73,190 +73,212 @@ const LOCATIONS_CONFIG = {
     country: "USA",
     city: "Los Angeles",
     state: "CA",
-    weight: 1,
+    weight: 2,
   },
 };
 
-// Pre-defined essential locations that should always be available
 const ESSENTIAL_LOCATIONS = [
   {
     name: "EZ Bottle Redemption Center",
-    description: "Official recycling center accepting all types of plastic bottles and containers. Environmentally-friendly disposal and redemption services available.",
+    description:
+      "Official recycling center accepting all types of plastic bottles and containers. Environmentally-friendly disposal and redemption services available.",
     address: "392 Boston Post Road, Orange, CT 06477, United States of America",
     location: {
       type: "Point",
-      coordinates: [-73.0210324, 41.2606126] // [longitude, latitude]
+      coordinates: [-73.0210324, 41.2606126],
     },
     locationType: "redeem centre",
-    primaryMaterialType: "plastic", // Primary material type
-    acceptedSubtypes: ["500ml plastic", "1000ml plastic", "1500ml plastic"], // Specific subtypes accepted
-    itemType: "plastic" // For backward compatibility
+    primaryMaterialType: "plastic",
+    // For EZ Bottle, let's ensure it accepts all its defined plastic subtypes
+    acceptedSubtypes: getSubtypesForPrimaryType("plastic"),
+    itemType: "plastic", // Backward compatibility
   },
-  // Add more essential locations here if needed
 ];
 
-const LOCATION_TYPES_ENUM = ["redeem centre", "collection point", "sewage unit"];
+const LOCATION_TYPES_ENUM = [
+  "redeem centre",
+  "collection point",
+  "sewage unit",
+];
 
-// Helper to generate random coordinates around a base
 const generateNearbyCoordinates = (baseLat, baseLng, offset = 0.08) => [
   parseFloat((baseLng + (Math.random() - 0.5) * offset * 2).toFixed(6)),
   parseFloat((baseLat + (Math.random() - 0.5) * offset * 2).toFixed(6)),
 ];
 
-// Helper to get a weighted random item type
-// Get a weighted primary material type
 const getWeightedPrimaryMaterialType = () => {
   const primaryTypes = getPrimaryMaterialTypes();
-
-  // Define weights for primary material types
   const primaryTypeWeights = [
-    { value: "plastic", weight: 7 },  // Emphasize plastic
+    { value: "plastic", weight: 7 },
     { value: "paper", weight: 2 },
     { value: "glass", weight: 2 },
     { value: "metal", weight: 1.5 },
     { value: "organic", weight: 1 },
-    { value: "eWaste", weight: 1 },
-    { value: "fabric", weight: 1 }
+    { value: "ewaste", weight: 1 }, // Corrected from eWaste to ewaste to match hierarchy
+    { value: "fabric", weight: 1 },
+    { value: "aluminium", weight: 1.5 }, // Corrected from eWaste to ewaste to match hierarchy
   ];
 
-  // Filter to valid primary types that exist in our system
-  const validWeightedTypes = primaryTypeWeights.filter(
-    (wt) => primaryTypes.includes(wt.value)
+  const validWeightedTypes = primaryTypeWeights.filter((wt) =>
+    primaryTypes.includes(wt.value)
   );
 
   if (validWeightedTypes.length === 0) {
-    // If none of our weighted options are valid, pick a random primary type
     return faker.helpers.arrayElement(primaryTypes) || "plastic";
   }
-
-  // Return a weighted primary type
   const selectedValue = faker.helpers.weightedArrayElement(validWeightedTypes);
-  return typeof selectedValue === 'string' && selectedValue.length > 0
+  return typeof selectedValue === "string" && selectedValue.length > 0
     ? selectedValue
     : "plastic";
 };
 
-// Get random subtypes for a given primary type
-const getRandomSubtypesForPrimary = (primaryType, maxCount = 3) => {
+// Enhanced function to get random subtypes with more control
+const getRandomSubtypesForPrimary = (primaryType, minCount = 2) => {
   const allSubtypes = getSubtypesForPrimaryType(primaryType);
 
   if (!allSubtypes || allSubtypes.length === 0) {
     return [];
   }
 
-  // Randomly decide if we want to accept all subtypes or just some
-  const acceptAll = Math.random() < 0.3; // 30% chance to accept all subtypes
+  let selectedSubtypes = [];
+  const maxPossibleSubtypes = allSubtypes.length;
+  minCount = Math.min(minCount, maxPossibleSubtypes); // Ensure minCount is not more than available
 
-  if (acceptAll) {
-    return allSubtypes;
+  if (primaryType === "plastic") {
+    // Ensure "500ml plastic" is likely included for plastic locations
+    if (allSubtypes.includes("500ml plastic") && Math.random() < 0.8) {
+      // 80% chance
+      selectedSubtypes.push("500ml plastic");
+    }
+    // Add other plastic subtypes to meet at least minCount, with variety
+    const remainingPlasticSubtypes = allSubtypes.filter(
+      (s) => !selectedSubtypes.includes(s)
+    );
+    if (remainingPlasticSubtypes.length > 0) {
+      const needed = Math.max(0, minCount - selectedSubtypes.length);
+      // Add at least 'needed', and potentially more for variety
+      const countToPick = faker.number.int({
+        min: needed,
+        max: Math.max(needed, remainingPlasticSubtypes.length), // Pick up to all remaining
+      });
+      selectedSubtypes.push(
+        ...faker.helpers.arrayElements(remainingPlasticSubtypes, countToPick)
+      );
+    }
+  } else {
+    // For non-plastic types, pick a random number of subtypes
+    const countToPick = faker.number.int({
+      min: minCount,
+      max: maxPossibleSubtypes,
+    });
+    selectedSubtypes = faker.helpers.arrayElements(allSubtypes, countToPick);
   }
 
-  // Otherwise, pick a random number of subtypes
-  const count = Math.min(
-    faker.number.int({ min: 1, max: maxCount }),
-    allSubtypes.length
-  );
+  // Ensure uniqueness and at least minCount if possible
+  selectedSubtypes = [...new Set(selectedSubtypes)]; // Unique
+  while (
+    selectedSubtypes.length < minCount &&
+    selectedSubtypes.length < maxPossibleSubtypes
+  ) {
+    const remaining = allSubtypes.filter((s) => !selectedSubtypes.includes(s));
+    if (remaining.length === 0) break;
+    selectedSubtypes.push(faker.helpers.arrayElement(remaining));
+    selectedSubtypes = [...new Set(selectedSubtypes)];
+  }
 
-  // Shuffle and take the first 'count' items
-  return faker.helpers.shuffle(allSubtypes).slice(0, count);
+  return selectedSubtypes.slice(
+    0,
+    faker.number.int({
+      min: minCount,
+      max: Math.max(minCount, selectedSubtypes.length),
+    })
+  ); // Final random trim for variety
 };
 
-// For backward compatibility: Get a weighted item type (could be primary or subtype)
 const getWeightedItemType = () => {
-  // Primary types get higher weight
-  if (Math.random() < 0.4) { // 40% chance to return a primary type
+  // For backward compatibility itemType
+  if (Math.random() < 0.4) {
     return getWeightedPrimaryMaterialType();
   }
-
-  // For the rest, we'll pick a random subtype from a random primary
   const primaryType = getWeightedPrimaryMaterialType();
   const subtypes = getSubtypesForPrimaryType(primaryType);
-
-  // If no subtypes, return the primary
   if (!subtypes || subtypes.length === 0) {
     return primaryType;
   }
-
-  // Pick a random subtype
   return faker.helpers.arrayElement(subtypes);
 };
 
-const seedDropOffLocations = async (defaultSeedCount = 20, forceDelete = false) => {
+const seedDropOffLocations = async (
+  defaultSeedCount = 10,
+  forceDelete = false // This parameter is not used currently to prevent accidental deletion
+) => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB connected for seeding drop-off locations...");    // First, ensure essential locations exist
-    console.log("Checking essential locations...");
-    let essentialAdded = 0;
+    console.log("MongoDB connected for seeding drop-off locations...");
 
-    for (const essentialLocation of ESSENTIAL_LOCATIONS) {
-      // Check if this essential location already exists
+    console.log("Checking/Updating essential locations...");
+    let essentialProcessedCount = 0;
+    for (const essentialLocationData of ESSENTIAL_LOCATIONS) {
       const existingEssential = await DropOffLocation.findOne({
-        name: essentialLocation.name
+        name: essentialLocationData.name,
       });
 
+      const dataToUpsert = {
+        ...essentialLocationData,
+        itemType: essentialLocationData.primaryMaterialType || "plastic", // Ensure backward compatibility
+      };
+
       if (!existingEssential) {
-        // Create the essential location with primary type and accepted subtypes
-        const locationData = { ...essentialLocation };
-
-        // For backward compatibility, ensure itemType is set if not already
-        if (!locationData.itemType) {
-          locationData.itemType = locationData.primaryMaterialType || "plastic";
-        }
-
-        // Create the location with proper hierarchy structure
-        await DropOffLocation.create(locationData);
-        essentialAdded++;
-        console.log(`Added essential location: ${locationData.name}`);
+        await DropOffLocation.create(dataToUpsert);
+        essentialProcessedCount++;
+        console.log(`Added essential location: ${dataToUpsert.name}`);
       } else {
-        // Update the existing location to use the new structure if needed
-        if (!existingEssential.primaryMaterialType) {
-          const primaryType = isPrimaryType(existingEssential.itemType)
-            ? existingEssential.itemType
-            : getPrimaryTypeForSubtype(existingEssential.itemType) || "plastic";
-
-          await DropOffLocation.findByIdAndUpdate(existingEssential._id, {
-            primaryMaterialType: primaryType,
-            // Only set accepted subtypes if it's a subtype
-            ...(isPrimaryType(existingEssential.itemType) ? {} : {
-              acceptedSubtypes: [existingEssential.itemType]
-            })
-          });
-          console.log(`Updated essential location ${essentialLocation.name} with primary/subtype structure.`);
-          essentialAdded++;
+        // Optionally update if structure changed, e.g., ensure acceptedSubtypes are correct
+        const updateNeeded =
+          !existingEssential.primaryMaterialType ||
+          JSON.stringify(existingEssential.acceptedSubtypes.sort()) !==
+            JSON.stringify(dataToUpsert.acceptedSubtypes.sort());
+        if (updateNeeded) {
+          await DropOffLocation.findByIdAndUpdate(
+            existingEssential._id,
+            dataToUpsert
+          );
+          console.log(
+            `Updated essential location: ${dataToUpsert.name} with new structure/subtypes.`
+          );
+          essentialProcessedCount++;
         } else {
-          console.log(`Essential location ${essentialLocation.name} already exists with proper structure, skipping.`);
+          console.log(
+            `Essential location ${dataToUpsert.name} already exists and is up-to-date.`
+          );
         }
       }
     }
-
-    if (essentialAdded > 0) {
-      console.log(`Added ${essentialAdded} essential drop-off locations.`);
+    if (essentialProcessedCount > 0) {
+      console.log(
+        `Processed ${essentialProcessedCount} essential drop-off locations.`
+      );
     } else {
-      console.log("All essential drop-off locations already exist.");
+      console.log("All essential drop-off locations were already up-to-date.");
     }
 
-    // Now check if we should add random locations
     const currentCount = await DropOffLocation.countDocuments();
-    let locationsToSeedCount = 0;
+    let randomLocationsToSeedCount = 0;
+    const targetTotalLocations = 20; // Aim for around 25-30 locations in total initially
 
-    if (currentCount >= 30) {
-      locationsToSeedCount = 15;
-      console.log(`Database has ${currentCount} drop-off locations (>=30). Planning to seed 15 more random locations.`);
+    if (currentCount < targetTotalLocations) {
+      randomLocationsToSeedCount = targetTotalLocations - currentCount;
+      console.log(
+        `Database has ${currentCount} drop-off locations. Planning to seed ${randomLocationsToSeedCount} new random locations to reach ~${targetTotalLocations}.`
+      );
     } else {
-      locationsToSeedCount = 20;
-      console.log(`Database has ${currentCount} drop-off locations (<30). Planning to seed 20 more random locations.`);
+      console.log(
+        `Database has ${currentCount} drop-off locations (>=${targetTotalLocations}). No new random locations will be seeded.`
+      );
     }
 
-    if (locationsToSeedCount === 0) {
-      console.log("No additional random drop-off locations needed.");
-    } else {
-      // Unlike before, we DON'T delete existing locations!
-      // We just add more unique ones
-
+    if (randomLocationsToSeedCount > 0) {
       const generatedLocations = [];
-      let phPlasticCount = 0;
-      const requiredPhPlasticLocations = 3;
-
       const weightedCityConfigs = [];
       for (const key in LOCATIONS_CONFIG) {
         for (let i = 0; i < LOCATIONS_CONFIG[key].weight; i++) {
@@ -264,82 +286,104 @@ const seedDropOffLocations = async (defaultSeedCount = 20, forceDelete = false) 
         }
       }
 
-      // Keep track of created location names to avoid duplicates
-      const createdNames = new Set((await DropOffLocation.find({}, 'name')).map(loc => loc.name));
+      const existingLocationNames = new Set(
+        (await DropOffLocation.find({}, "name")).map((loc) => loc.name)
+      );
 
-      for (let i = 0, created = 0; created < locationsToSeedCount; i++) {
-        // Prevent infinite loops if we can't create enough unique locations
-        if (i > locationsToSeedCount * 3) {
-          console.log(`Could only create ${created} new locations after ${i} attempts. Stopping.`);
+      for (
+        let i = 0;
+        generatedLocations.length < randomLocationsToSeedCount;
+        i++
+      ) {
+        if (i > randomLocationsToSeedCount * 3) {
+          // Safety break
+          console.log(
+            `Could only generate ${generatedLocations.length} unique random locations. Stopping.`
+          );
           break;
         }
 
-        let cityConfig;
-        let itemTypeToUse;
-        let isPhPlasticSpecial = false;
+        const cityConfig = faker.helpers.arrayElement(weightedCityConfigs);
+        const primaryMaterialTypeForLocation = getWeightedPrimaryMaterialType();
+        const acceptedSubtypesForLocation = getRandomSubtypesForPrimary(
+          primaryMaterialTypeForLocation
+        );
 
-        if (phPlasticCount < requiredPhPlasticLocations) {
-          cityConfig = LOCATIONS_CONFIG.NIGERIA_PH;
-          itemTypeToUse = "500ml plastic"; // Using more specific plastic type
-          phPlasticCount++;
-          isPhPlasticSpecial = true;
-        } else {
-          cityConfig = faker.helpers.arrayElement(weightedCityConfigs);
-          itemTypeToUse = getWeightedItemType();
+        // For backward compatibility, pick one itemType (can be primary or a subtype)
+        const itemTypeForLocation =
+          acceptedSubtypesForLocation.length > 0 && Math.random() < 0.7
+            ? faker.helpers.arrayElement(acceptedSubtypesForLocation)
+            : primaryMaterialTypeForLocation;
+
+        let safeItemTypeName = primaryMaterialTypeForLocation; // Use primary type for naming consistency
+        if (
+          typeof safeItemTypeName !== "string" ||
+          safeItemTypeName.length === 0
+        ) {
+          safeItemTypeName = "Recycling"; // Fallback
         }
 
-        const coords = generateNearbyCoordinates(cityConfig.lat, cityConfig.lng);
+        const locationName = `${cityConfig.namePrefix} ${
+          faker.company.name().split(" ")[0]
+        } ${
+          safeItemTypeName.charAt(0).toUpperCase() + safeItemTypeName.slice(1)
+        } Center ${i + 1}`; // Add index for more uniqueness
 
-        // Ensure itemTypeToUse is a string before using string methods for naming
-        let safeItemTypeName = itemTypeToUse;
-        if (typeof safeItemTypeName !== 'string' || safeItemTypeName.length === 0) {
-          safeItemTypeName = '500ml plastic';
-        }
-
-        const locationName = isPhPlasticSpecial
-          ? `${cityConfig.namePrefix} Prime Plastic Drop-off ${phPlasticCount}`
-          : `${cityConfig.namePrefix} ${faker.company.name().split(" ")[0]} ${safeItemTypeName.charAt(0).toUpperCase() + safeItemTypeName.slice(1)} Hub`;
-
-        // Skip if this name already exists
-        if (createdNames.has(locationName)) {
+        if (existingLocationNames.has(locationName)) {
           continue;
         }
-
-        createdNames.add(locationName);
-        created++;
+        existingLocationNames.add(locationName);
 
         generatedLocations.push({
           name: locationName,
-          itemType: itemTypeToUse,
-          description: `Accepts ${itemTypeToUse}. Located in ${cityConfig.city}. ${faker.lorem.sentence(5)}`,
-          address: `${faker.location.streetAddress(false)}, ${cityConfig.city}, ${cityConfig.state || ''}, ${cityConfig.country}`.replace(/ ,|, $/g, ''),
-          location: { type: "Point", coordinates: coords },
           locationType: faker.helpers.arrayElement(LOCATION_TYPES_ENUM),
+          primaryMaterialType: primaryMaterialTypeForLocation,
+          acceptedSubtypes: acceptedSubtypesForLocation,
+          itemType: itemTypeForLocation, // Backward compatibility
+          description: `Accepts ${primaryMaterialTypeForLocation} including ${
+            acceptedSubtypesForLocation.join(", ") || "various subtypes"
+          }. Located in ${cityConfig.city}.`,
+          address: `${faker.location.streetAddress(false)}, ${
+            cityConfig.city
+          }, ${cityConfig.state || ""}, ${cityConfig.country}`.replace(
+            / ,|, $/g,
+            ""
+          ),
+          location: {
+            type: "Point",
+            coordinates: generateNearbyCoordinates(
+              cityConfig.lat,
+              cityConfig.lng
+            ),
+          },
         });
       }
 
       if (generatedLocations.length > 0) {
         await DropOffLocation.insertMany(generatedLocations);
-        console.log(`Successfully seeded ${generatedLocations.length} additional drop-off locations.`);
+        console.log(
+          `Successfully seeded ${generatedLocations.length} new random drop-off locations.`
+        );
       } else {
-        console.log("No additional drop-off locations were generated.");
+        console.log(
+          "No new random drop-off locations were generated in this attempt."
+        );
       }
     }
 
     const finalCount = await DropOffLocation.countDocuments();
     console.log(`Total drop-off locations in database: ${finalCount}`);
-
   } catch (error) {
     console.error("Error seeding drop-off locations:", error);
   } finally {
-    if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+    if (
+      mongoose.connection.readyState === 1 ||
+      mongoose.connection.readyState === 2
+    ) {
       await mongoose.disconnect();
       console.log("MongoDB disconnected.");
     }
   }
 };
 
-// Support command line arguments for seed count
-const seedCount = process.argv[2] ? parseInt(process.argv[2]) : 20;
-const forceDeleteArg = process.argv[3] === 'force';
-seedDropOffLocations(seedCount, forceDeleteArg);
+seedDropOffLocations();

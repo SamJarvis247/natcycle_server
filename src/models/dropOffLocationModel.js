@@ -26,14 +26,12 @@ const dropOffLocationSchema = new mongoose.Schema({
     enum: getPrimaryMaterialTypes(),
     default: "plastic",
   },
-  // Specific subtypes this location accepts (if any)
-  // If empty, location accepts all subtypes of the primary material type
   acceptedSubtypes: [
     {
       type: String,
     },
   ],
-  // For backward compatibility - still store the specific material type
+  // For backward compatibility
   itemType: {
     type: String,
     required: true,
