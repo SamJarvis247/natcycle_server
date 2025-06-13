@@ -1,5 +1,9 @@
 const DropOffLocation = require("../models/dropOffLocationModel");
 const Material = require("../models/materialModel");
+const {
+  getPrimaryMaterialTypes,
+  getSubtypesForPrimaryType,
+} = require("../models/enums/materialTypeHierarchy");
 
 // add new drop off location
 exports.addDropOffLocation = async (req, res) => {
@@ -12,7 +16,9 @@ exports.addDropOffLocation = async (req, res) => {
     longitude,
     googleMapsUri,
     googleMapId,
+    acceptedSubCategories,
   } = req.body;
+  console.log(req.body);
 
   try {
     const existingDropOffLocation = await DropOffLocation.findOne({ name });
@@ -22,10 +28,22 @@ exports.addDropOffLocation = async (req, res) => {
         .status(400)
         .json({ message: "Drop off location already exists" });
     }
+    const isVerifiedCategory = getPrimaryMaterialTypes().includes(itemType);
+    if (!isVerifiedCategory) {
+      return res.status(400).json({ message: "Invalid item type" });
+    }
+    const isVerifiedSubCategory = getSubtypesForPrimaryType(itemType);
+    acceptedSubCategories.forEach((subCategory) => {
+      if (!isVerifiedSubCategory.includes(subCategory)) {
+        return res.status(400).json({ message: "Invalid sub category" });
+      }
+    });
 
     const dropOffLocation = new DropOffLocation({
       name,
       itemType,
+      primaryMaterialType: itemType,
+      acceptedSubtypes: acceptedSubCategories ? acceptedSubCategories : [],
       description,
       address,
       location: {

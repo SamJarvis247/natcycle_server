@@ -1,14 +1,5 @@
-const materialEnum = [
-  "500ml plastic",
-  "1000ml plastic",
-  "1500ml plastic",
-  "glass",
-  "paper",
-  "metal",
-  "food",
-  "organic",
-  "fabric",
-  "eWaste",
-];
+const { getAllMaterialTypes } = require("./materialTypeHierarchy");
+
+const materialEnum = getAllMaterialTypes();
 
 module.exports = materialEnum;

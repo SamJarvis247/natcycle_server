@@ -1,6 +1,10 @@
 const Material = require("../models/materialModel");
 const { catchAsync } = require("../utility/catchAsync.js");
 const cloudinaryUpload = require("../config/cloudinaryUpload");
+const {
+  getPrimaryMaterialTypes,
+  getSubtypesForPrimaryType,
+} = require("../models/enums/materialTypeHierarchy");
 
 // Get all materials
 exports.getAllMaterials = catchAsync(async (req, res) => {
@@ -36,16 +40,49 @@ exports.getMaterial = catchAsync(async (req, res) => {
 
 // Create a new material
 exports.createMaterial = catchAsync(async (req, res) => {
-  const { category, name, weight, cuValue } = req.body;
+  const { category, subCategory, name, weight, quantity, cuValue, natPoints } =
+    req.body;
+  console.log(req.body);
+
+  const isValidCategory = getPrimaryMaterialTypes().includes(category);
+  if (!isValidCategory) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Invalid material category",
+    });
+  }
+  const isValidSubCat =
+    getSubtypesForPrimaryType(category).includes(subCategory);
+  if (!isValidSubCat) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Invalid material name for the given category",
+    });
+  }
 
   // Create material object
-  const materialData = {
-    category,
-    name,
-    weight: parseFloat(weight),
-    cuValue: parseFloat(cuValue),
-    isActive: true,
-  };
+  let materialData = {};
+  if (quantity && !weight) {
+    materialData = {
+      category,
+      subCategory,
+      name,
+      quantity: parseFloat(quantity),
+      cuValue: parseFloat(cuValue),
+      natPoints: parseFloat(natPoints),
+      isActive: true,
+    };
+  } else if (weight && !quantity) {
+    materialData = {
+      category,
+      subCategory,
+      name,
+      weight: parseFloat(weight),
+      cuValue: parseFloat(cuValue),
+      natPoints: parseFloat(natPoints),
+      isActive: true,
+    };
+  }
 
   // Handle image upload if provided
   if (req.file) {
@@ -148,5 +185,37 @@ exports.deleteMaterial = catchAsync(async (req, res) => {
   res.status(204).json({
     status: "success",
     data: null,
+  });
+});
+
+exports.getSubtypesForPrimaryType = catchAsync(async (req, res) => {
+  const primaryType = req.params.primaryType;
+
+  const isValidPrimaryType = getPrimaryMaterialTypes().includes(primaryType);
+  if (!isValidPrimaryType) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Invalid primary material type",
+    });
+  }
+
+  const subtypes = getSubtypesForPrimaryType(primaryType);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      subtypes,
+    },
+  });
+});
+
+exports.getPrimaryMaterialTypes = catchAsync(async (req, res) => {
+  const primaryTypes = getPrimaryMaterialTypes();
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      primaryTypes,
+    },
   });
 });

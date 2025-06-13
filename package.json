@@ -7,7 +7,11 @@
     "dev": "nodemon src/server.js",
     "seed:items": "node src/scripts/seedItems.js",
     "seed:dropoffs": "node src/scripts/seedDropOffLocations.js",
-    "clear:items": "node src/scripts/clearItems.js"
+    "seed:all": "npm run seed:dropoffs && npm run seed:items",
+    "seed:force-dropoffs": "node src/scripts/seedDropOffLocations.js 20 force",
+    "seed:force-items": "node src/scripts/seedItems.js 30 force",
+    "clear:items": "node src/scripts/clearItems.js",
+    "clear:dropoffs": "node src/scripts/clearDropOffs.js"
   },
   "author": "Jarvis Dev",
   "license": "MIT",

@@ -293,27 +293,32 @@ exports.createDropOff = catchAsync(async (req, res) => {
 
 exports.getUserDropOffs = catchAsync(async (req, res) => {
   const userId = req.user._id;
-  const { page = 1, limit = 10 } = req.query;
 
   // Get all drop offs for the user
-  const dropOffs = await DropOff.paginate(
-    { user: userId },
-    {
-      page,
-      limit,
-      sort: { createdAt: -1 },
-      populate: [
-        {
-          path: "dropOffLocation",
-          select: "name address ",
-        },
-      ],
-    }
+  const dropOffs = await DropOff.find({
+    user: userId,
+  });
+  const populateDropOffLocation = await Promise.all(
+    dropOffs.map(async (dropOff) => {
+      const dropOffObject = dropOff.toObject() ? dropOff.toObject() : dropOff;
+      const dropOffLocation = await DropOffLocation.findById(
+        dropOffObject.dropOffLocation.toString()
+      ).catch((err) => {
+        console.log("Error finding drop off location:", err);
+        return null;
+      });
+
+      if (dropOffLocation) {
+        dropOffObject.dropOffLocation = dropOffLocation;
+      }
+
+      return dropOffObject;
+    })
   );
 
   res.status(200).json({
     status: "success",
-    data: dropOffs,
+    data: populateDropOffLocation,
   });
 });
 

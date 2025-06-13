@@ -1,20 +1,34 @@
 const mongoose = require("mongoose");
 const { default: materialEnum } = require("./enums/materialType");
+const {
+  getPrimaryMaterialTypes,
+  getSubtypesForPrimaryType,
+} = require("./enums/materialTypeHierarchy");
 
 const MaterialSchema = mongoose.Schema(
   {
     category: {
       type: String,
       required: true,
-      enum: materialEnum,
+      enum: getPrimaryMaterialTypes(),
       index: true,
+    },
+    subCategory: {
+      type: String,
+      required: true,
+      enum: getSubtypesForPrimaryType(this.category),
     },
     name: {
       type: String,
       required: true,
       trim: true,
-    },
+    }, // for backward compatibility
     weight: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    quantity: {
       type: Number,
       required: true,
       default: 0,

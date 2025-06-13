@@ -15,6 +15,13 @@ router.post(
   materialController.createMaterial
 );
 
+router.get("/primary-types", materialController.getPrimaryMaterialTypes);
+
+router.get(
+  "/subtypes/:primaryType",
+  materialController.getSubtypesForPrimaryType
+);
+
 router
   .route("/:id")
   .get(materialController.getMaterial)
