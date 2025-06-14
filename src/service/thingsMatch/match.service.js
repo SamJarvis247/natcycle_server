@@ -218,11 +218,52 @@ async function getUserMatches(userId) {
 
 async function getMatchById(matchId) {
   try {
-    const match = await Match.findById(matchId).populate(
-      "itemId itemOwnerId interestedUserId"
-    );
+    const match = await Match.findById(matchId)
     if (!match) throw new Error("Match not found");
-    return match;
+    const matchObject = match.toObject ? match.toObject() : { ...match };
+    let matchID = matchObject._id;
+    let itemOwnerID = matchObject.itemOwnerId;
+    let itemSwiperID = matchObject.itemSwiperId;
+    let itemID = matchObject.itemId;
+    const DETAILS = await Promise.all([
+      User.findOne({
+        thingsMatchAccount: itemOwnerID,
+      }),
+      User.findOne({
+        thingsMAtchAccount: itemSwiperID,
+      }),
+      Message.findOne({
+        matchId: matchID,
+      }),
+      Item.findById(itemID),
+    ]);
+    matchObject.itemDetails = {
+      item: DETAILS.length ? DETAILS[3] : "Unknown Item",
+    };
+    matchObject.itemOwnerDetails = {
+      name: DETAILS.length
+        ? DETAILS[0].firstName + " " + DETAILS[0].lastName
+        : "Unknown User",
+      email: DETAILS.length ? DETAILS[0].email : null,
+      profilePicture: DETAILS.length ? DETAILS[0].profilePicture?.url : null,
+    };
+    matchObject.itemSwiperDetails = {
+      name: DETAILS.length
+        ? DETAILS[1].firstName + " " + DETAILS[1].lastName
+        : "Unknown User",
+      email: DETAILS.length ? DETAILS[1].email : null,
+      profilePicture: DETAILS.length ? DETAILS[1].profilePicture?.url : null,
+    };
+    matchObject.hasMessages = {
+      status: DETAILS[2] ? true : false,
+    };
+    matchObject.userRole = {
+      itemOwner: itemOwnerID.toString() === matchObject.itemOwnerId.toString(),
+      itemSwiper: itemSwiperID.toString() === matchObject.itemSwiperId.toString(),
+    };
+    matchObject.matchId = matchID;
+
+    return matchObject;
   } catch (error) {
     console.error(`Error fetching match by ID ${matchId}:`, error);
     throw new Error("Failed to fetch match details");

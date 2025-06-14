@@ -10,6 +10,9 @@ router.use(isThingsMatchUser);
 // Get all matches for the logged-in user
 router.get("/my-matches", thingsMatchMatchController.getUserMatches);
 
+// Get a specific match by its ID
+router.get("/single-match/:matchId", thingsMatchMatchController.getMatchDetails);
+
 // Get all matches for a specific item
 router.get("/:itemId", thingsMatchMatchController.getMatchesForItem);
 
@@ -19,8 +22,7 @@ router.post(
   thingsMatchMatchController.swipeAndSendDefaultMessage
 );
 
-// Get a specific match by its ID
-router.get("/:matchId", thingsMatchMatchController.getMatchDetails);
+
 
 // Item owner confirms a pending match request
 router.patch(
