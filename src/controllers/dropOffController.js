@@ -16,9 +16,13 @@ const {
 exports.addDropOff = async (req, res) => {
   const { location, itemType, dropOffQuantity, description, campaignId } =
     req.body;
-  const isVerifiedCategory = getPrimaryMaterialTypes().includes(itemType);
-  if (!isVerifiedCategory) {
-    return res.status(400).json({ message: "Invalid item type" });
+
+  // Validate primary itemType
+  const isVerifiedPrimaryCategory = getPrimaryMaterialTypes().includes(itemType);
+  if (!isVerifiedPrimaryCategory) {
+    return res
+      .status(400)
+      .json({ message: `Invalid primary item type: ${itemType}` });
   }
 
   const findDropOffLocation = await DropOffLocation.findById(location);
@@ -31,76 +35,104 @@ exports.addDropOff = async (req, res) => {
     let campaign;
     if (campaignId) {
       campaign = await Campaign.findById(campaignId);
-
       if (!campaign) {
         return res.status(404).json({
           message: "Campaign not found",
         });
       }
     }
-    const mainQuantity = JSON.parse(dropOffQuantity);
-    const totalQuantity = mainQuantity.reduce((acc, curr) => {
-      return acc + curr.units;
+
+    // Ensure dropOffQuantity is parsed correctly if it's a string
+    let mainQuantity;
+    try {
+      mainQuantity = typeof dropOffQuantity === 'string' ? JSON.parse(dropOffQuantity) : dropOffQuantity;
+      if (!Array.isArray(mainQuantity)) {
+        throw new Error("dropOffQuantity must be an array.");
+      }
+    } catch (parseError) {
+      console.error("Error parsing dropOffQuantity:", parseError);
+      return res.status(400).json({ message: "Invalid format for dropOffQuantity. Expected an array of items." });
+    }
+
+
+    const totalItemUnits = mainQuantity.reduce((acc, curr) => {
+      return acc + (curr.units || 0); // Ensure units exist and are numbers
     }, 0);
 
     const dropOff = new DropOff({
       dropOffLocation: findDropOffLocation._id,
       user: req.user._id,
       itemType,
-      dropOffQuantity: mainQuantity,
-      itemQuantity: totalQuantity,
+      dropOffQuantity: mainQuantity, // Array of { materialType (subtype), units }
+      itemQuantity: totalItemUnits,
       description,
       campaign: campaignId ? campaign._id : null,
     });
 
     if (req.file) {
-      // const fileStr = req.file.buffer.toString('base64')
       const result = await cloudinaryUpload.image(req.file.path);
-
       if (!result) return res.status(400).send("Error uploading image");
-
       dropOff.receipt = {
         public_id: result.public_id,
         url: result.secure_url,
       };
     }
 
-    // TODO: UDPTE CU LOGIC TO USE THE ONE FORM THE MATERIALS
-    //CU logic
-    let totalCU;
+    let calculatedTotalCUforDropOff = 0;
     const user = await User.findById(req.user._id);
-    mainQuantity.forEach(async (item) => {
-      console.log("😊", item);
-      const cu = await cuCalculationService.updateUserCU(
-        user._id,
-        itemType,
-        item.units,
-        item.MaterialType
-      );
-      totalCU = (totalCU || 0) + cu.addedCU;
-      console.log("CU", cu.newTotalCU);
-      console.log("Total Cu", totalCU);
-    });
-    dropOff.pointsEarned = totalCU;
 
-    await dropOff.save();
-
-    // Update the user's item count based on the item type
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found for CU calculation." });
     }
-    const userItemCount = user.itemsCount;
-    // Update the user's item count based on the item type
-    userItemCount[itemType] = (userItemCount[itemType] || 0) + totalQuantity;
-    await user.save();
+
+
+    for (const item of mainQuantity) {
+      console.log("Processing item for CU calculation: 😊", item);
+      if (typeof item.units !== 'number' || item.units <= 0) {
+        console.warn(`Skipping item due to invalid units:`, item);
+        continue;
+      }
+      if (!item.materialType) {
+        console.warn(`Skipping item due to missing materialType (subtype):`, item);
+        continue;
+      }
+
+      try {
+        const cuResult = await cuCalculationService.updateUserCU(
+          user._id,
+          itemType,
+          item.units,
+          item.materialType
+        );
+
+        if (cuResult && typeof cuResult.addedCU === 'number') {
+          calculatedTotalCUforDropOff += cuResult.addedCU;
+          console.log(`CU added for ${item.materialType}: ${cuResult.addedCU}`);
+          console.log(`User's new total CU: ${cuResult.newTotalCU}`);
+        } else {
+          console.warn(`Failed to get CU result or addedCU for item:`, item, cuResult);
+        }
+      } catch (cuError) {
+        console.error(`Error updating CU for item ${item.materialType}:`, cuError.message);
+        // Decide if you want to stop the whole process or just skip this item's CU
+        // For now, we'll log and continue, so other items might still grant CU.
+        // You could also return an error response here.
+      }
+    }
+
+    console.log("Final Total CU calculated for this dropOff:", calculatedTotalCUforDropOff);
+    dropOff.pointsEarned = calculatedTotalCUforDropOff;
+
+    console.log("DropOff object before saving: ", dropOff);
+    await dropOff.save();
 
     res.status(201).json({
       message: "Drop off request added successfully",
       data: dropOff,
     });
   } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: err.message });
+    console.error("Error in addDropOff:", err); // Log the actual error object
+    res.status(400).json({ message: err.message || "An unexpected error occurred." });
   }
 };
 
