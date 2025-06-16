@@ -3,6 +3,7 @@ const router = express.Router()
 
 const {
   addDropOffLocation,
+  adminGetDropOffLocations,
   getDropOffLocations, deleteDropOffLocation, getDropOffLocationById,
   getNearestDropOffLocations, updateDropOffLocation
 } = require('../controllers/dropOffLocationController')
@@ -10,6 +11,8 @@ const {
 router.post('/', addDropOffLocation)
 
 router.get('/', getDropOffLocations)
+
+router.get("/all", adminGetDropOffLocations)
 
 router.get('/:id', getDropOffLocationById)
 

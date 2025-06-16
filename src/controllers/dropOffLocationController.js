@@ -67,6 +67,7 @@ exports.addDropOffLocation = async (req, res) => {
 
 // get all drop off locations
 exports.getDropOffLocations = async (req, res) => {
+  console.log("GOT DROP OFF LOCATIONS");
   const { page = 1, limit = 50, id, itemType } = req.query;
 
   try {
@@ -99,6 +100,28 @@ exports.getDropOffLocations = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+//admin get all dropOff locations
+exports.adminGetDropOffLocations = async (req, res) => {
+  console.log("GOT DROP OFF LOCATIONS FOR ADMIN");
+  console.log(req.query);
+  const { page = 1, limit = 50, } = req.query;
+
+  try {
+    const dropOffLocations = await DropOffLocation.find().skip((page - 1) * limit).limit(limit);
+    console.log(
+      "🚀 ~ exports.getDropOffLocations= ~ dropOffLocations:",
+      dropOffLocations
+    );
+
+    res.status(200).json({
+      data: dropOffLocations,
+      message: "Drop off locations fetched successfully",
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
 
 // get drop off location by id
 exports.getDropOffLocationById = async (req, res) => {
@@ -251,4 +274,4 @@ exports.updateDropOffLocation = async (req, res) => {
   }
 };
 
-exports.getDropOffLocationMaterials = async (req, res) => {};
+exports.getDropOffLocationMaterials = async (req, res) => { };

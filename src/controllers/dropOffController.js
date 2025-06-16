@@ -114,9 +114,6 @@ exports.addDropOff = async (req, res) => {
         }
       } catch (cuError) {
         console.error(`Error updating CU for item ${item.materialType}:`, cuError.message);
-        // Decide if you want to stop the whole process or just skip this item's CU
-        // For now, we'll log and continue, so other items might still grant CU.
-        // You could also return an error response here.
       }
     }
 
