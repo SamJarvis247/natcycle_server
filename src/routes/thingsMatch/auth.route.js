@@ -7,6 +7,9 @@ const {
 
 const router = Router();
 
+// Get ThingsMatch user profile
+router.get("/profile", isThingsMatchUser, thingsMatchAuthController.getUser);
+
 //signup/signin Thingsmatch
 router.get(
   "/thingsMatchAccount/:token",
@@ -19,7 +22,5 @@ router.put(
   thingsMatchAuthController.updateThingsMatchAccount
 );
 
-// Get ThingsMatch user profile
-router.get("/profile", isThingsMatchUser, thingsMatchAuthController.getUser);
 
 module.exports = router;

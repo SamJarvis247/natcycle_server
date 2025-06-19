@@ -179,7 +179,7 @@ exports.getNearestDropOffLocations = async (req, res) => {
           $maxDistance: distance,
         },
       },
-      itemType: itemType ? itemType.toLowerCase() : undefined,
+      primaryMaterialType: itemType ? itemType : { $exists: true },
     };
     if (itemType.toLowerCase() === "others") {
       query = {
@@ -197,9 +197,11 @@ exports.getNearestDropOffLocations = async (req, res) => {
         },
       };
     }
+    console.log("Query for nearest drop off locations:", query);
     const dropOffLocations = await DropOffLocation.find(query).catch((e) => {
       console.log(e);
     });
+    console.log("🚀 ~ exports.getNearestDropOffLocations= ~ dropOffLocations:", dropOffLocations)
 
     res.status(200).json({
       data: dropOffLocations,
