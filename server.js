@@ -3,7 +3,7 @@ const cronScheduler = require("./src/cron");
 const http = require("http");
 const { Server } = require("socket.io");
 const corsConfig = require("./src/config/corsConfig");
-const initializeSocketIO = require("./src/socket/chatHandler"); // Will create this
+const initializeSocketIO = require("./src/socket/chatHandler");
 
 const app = require("./src/app");
 const mongoose = require("mongoose");
@@ -19,14 +19,13 @@ const httpServer = http.createServer(app);
 
 // Initialize Socket.IO
 const io = new Server(httpServer, {
-  cors: corsConfig, // Use the same CORS config as Express
+  cors: corsConfig,
 });
 
 // Pass 'io' instance to the socket handler
 initializeSocketIO(io);
 
-// Make io accessible in request objects for controllers
-// This allows controllers to access io via req.app.get('socketio')
+
 app.set('socketio', io);
 
 // connect to mongoDB

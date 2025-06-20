@@ -12,6 +12,7 @@ const socketAuthMiddleware = async (socket, next) => {
     const decoded = jwt.verify(token, process.env.TOKEN_SECRET);
     console.log("🚀 ~ socketAuthMiddleware ~ decoded:", decoded)
     if (decoded.accountType !== 'thingsmatch' || !decoded._id) {
+      console.log("🚀 ~ socketAuthMiddleware ~ Invalid token payload:", decoded);
       return next(new Error('Authentication error: Invalid token payload'));
     }
 
@@ -20,6 +21,7 @@ const socketAuthMiddleware = async (socket, next) => {
     console.log("🚀 ~ socketAuthMiddleware ~ thingsMatchUser:", thingsMatchUser)
 
     if (!thingsMatchUser) {
+      console.log("🚀 ~ socketAuthMiddleware ~ User not found for ID:", decoded._id);
       return next(new Error('Authentication error: User not found'));
     }
 
