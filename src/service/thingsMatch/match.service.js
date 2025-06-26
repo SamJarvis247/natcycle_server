@@ -2,6 +2,7 @@ const Match = require("../../models/thingsMatch/match.model.js");
 const Item = require("../../models/thingsMatch/items.model.js");
 const Message = require("../../models/thingsMatch/message.model.js");
 const User = require("../../models/userModel.js");
+const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
 const itemService = require("./item.service.js");
 const messageService = require("./message.service.js"); // Will be created next
 const mongoose = require("mongoose");
@@ -24,7 +25,7 @@ async function createMatchOnSwipeAndSendDefaultMessage(
     let existingMatch = await Match.findOne({
       itemId,
       itemOwnerId,
-      interestedUserId: swiperId,
+      itemSwiperId: swiperId,
     });
 
     if (existingMatch && existingMatch.status !== "unmatched") {
@@ -47,7 +48,7 @@ async function createMatchOnSwipeAndSendDefaultMessage(
       existingMatch = new Match({
         itemId,
         itemOwnerId,
-        interestedUserId: swiperId,
+        itemSwiperId: swiperId,
         status: "pendingInterest", // Swiper shows interest, owner needs to see message and respond
       });
       await existingMatch.save();
@@ -115,7 +116,7 @@ async function updateMatchStatus(matchId, newStatus, userId) {
 
     if (
       match.itemOwnerId.toString() !== userId &&
-      match.interestedUserId.toString() !== userId
+      match.itemSwiperId.toString() !== userId
     ) {
       throw new Error("User not authorized to update this match.");
     }
@@ -166,7 +167,7 @@ async function getUserMatches(userId) {
             thingsMatchAccount: itemOwnerID,
           }),
           User.findOne({
-            thingsMAtchAccount: itemSwiperID,
+            thingsMatchAccount: itemSwiperID,
           }),
           Message.findOne({
             matchId: matchID,
@@ -230,7 +231,7 @@ async function getMatchById(matchId) {
         thingsMatchAccount: itemOwnerID,
       }),
       User.findOne({
-        thingsMAtchAccount: itemSwiperID,
+        thingsMatchAccount: itemSwiperID,
       }),
       Message.findOne({
         matchId: matchID,
@@ -286,7 +287,7 @@ async function getMatchesForItem(itemId) {
             thingsMatchAccount: itemOwnerID,
           }),
           User.findOne({
-            thingsMAtchAccount: itemSwiperID,
+            thingsMatchAccount: itemSwiperID,
           }),
           Message.findOne({
             matchId: matchID,
@@ -336,7 +337,7 @@ async function adminGetAllMatches() {
           thingsMatchAccount: itemOwnerID,
         }),
         User.findOne({
-          thingsMAtchAccount: itemSwiperID,
+          thingsMatchAccount: itemSwiperID,
         }),
         Message.findOne({
           matchId: matchID,
@@ -371,6 +372,84 @@ async function adminGetAllMatches() {
   return populatedMatches;
 }
 
+// Called by ItemOwner to end a match and mark item as given away
+async function endMatch(matchId, userId) {
+  try {
+    const match = await Match.findById(matchId).populate("itemId");
+    if (!match) throw new Error("Match not found");
+
+    // Check if user is the item owner
+    if (match.itemOwnerId.toString() !== userId.toString()) {
+      throw new Error("Only the item owner can end this match");
+    }
+
+    // Check if match is in a valid state to be ended
+    const validStatuses = ["active", "pendingInterest"];
+    if (!validStatuses.includes(match.status)) {
+      throw new Error(`Cannot end match with status: ${match.status}`);
+    }
+
+    // Update the item status to given_away
+    const item = await Item.findById(match.itemId);
+    if (!item) throw new Error("Item not found");
+
+    item.status = "given_away";
+    item.discoveryStatus = "faded"; // Hide from discovery
+    await item.save();
+
+    // Update match status to completed_by_owner
+    match.status = "completed_by_owner";
+    await match.save();
+
+    // Delete all messages for this match to clean up database
+    await messageService.deleteMessagesForMatch(matchId);
+
+    // Update user stats - increment items shared for the owner
+    const ownerThingsMatchUser = await ThingsMatchUser.findById(match.itemOwnerId);
+    if (ownerThingsMatchUser) {
+      ownerThingsMatchUser.itemsShared = (ownerThingsMatchUser.itemsShared || 0) + 1;
+      await ownerThingsMatchUser.save();
+    }
+
+    // Optional: End all other pending matches for this item since it's now given away
+    const otherMatches = await Match.find({
+      itemId: match.itemId,
+      _id: { $ne: matchId },
+      status: { $in: ["active", "pendingInterest"] }
+    });
+
+    if (otherMatches.length > 0) {
+      // Update other matches to archived status
+      await Match.updateMany(
+        {
+          itemId: match.itemId,
+          _id: { $ne: matchId },
+          status: { $in: ["active", "pendingInterest"] }
+        },
+        {
+          status: "archived",
+          archivedReason: "item_given_away_to_other_user"
+        }
+      );
+
+      // Clean up messages for archived matches as well
+      for (const otherMatch of otherMatches) {
+        await messageService.deleteMessagesForMatch(otherMatch._id);
+      }
+    }
+
+    return {
+      message: "Match ended successfully. Item marked as given away.",
+      match: match,
+      item: item,
+      archivedMatches: otherMatches.length
+    };
+  } catch (error) {
+    console.error("Error ending match:", error);
+    throw new Error("Failed to end match: " + error.message);
+  }
+}
+
 module.exports = {
   createMatchOnSwipeAndSendDefaultMessage,
   confirmMatch,
@@ -379,4 +458,5 @@ module.exports = {
   getMatchById,
   adminGetAllMatches,
   getMatchesForItem,
+  endMatch,
 };

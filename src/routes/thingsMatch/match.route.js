@@ -30,6 +30,12 @@ router.patch(
   thingsMatchMatchController.confirmMatchByOwner
 );
 
+// Item owner ends a match and marks item as given away
+router.patch(
+  "/:matchId/end",
+  thingsMatchMatchController.endMatch
+);
+
 // router.patch("/:matchId/status", thingsMatchMatchController.updateMatchStatus);
 
 module.exports = router;

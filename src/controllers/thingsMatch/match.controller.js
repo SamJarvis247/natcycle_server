@@ -129,6 +129,50 @@ const adminGetAllMatches = catchAsync(async (req, res, next) => {
   });
 });
 
+const endMatch = catchAsync(async (req, res, next) => {
+  if (!req.TMID) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
+  }
+
+  const { matchId } = req.params;
+
+  const result = await matchService.endMatch(matchId, req.TMID);
+
+  const io = req.app.get("socketio");
+  if (io && result.match) {
+    const matchIdForRoom = result.match._id.toString();
+    // Notify both participants that the match has ended
+    io.to(matchIdForRoom).emit("matchEnded", {
+      match: result.match,
+      item: result.item,
+      message: "This match has been completed by the item owner",
+    });
+
+    // Specifically notify the swiper that the match ended
+    const swiperTMID = result.match.itemSwiperId.toString();
+    const swiperSockets = Array.from(io.sockets.sockets.values()).filter(
+      (s) => s.TMID === swiperTMID
+    ); swiperSockets.forEach((swiperSocket) => {
+      io.to(swiperSocket.id).emit("matchCompleted", {
+        match: result.match,
+        reason: "Item has been given away by owner",
+      });
+    });
+
+    // If other matches were archived, notify those users as well
+    if (result.archivedMatches > 0) {
+      // Note: In a production system, you might want to fetch the archived matches
+      // to get the specific user IDs and notify them individually
+      console.log(`${result.archivedMatches} other matches were archived for this item`);
+    }
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: result,
+  });
+});
+
 module.exports = {
   swipeAndSendDefaultMessage,
   confirmMatchByOwner,
@@ -136,4 +180,5 @@ module.exports = {
   getMatchDetails,
   getMatchesForItem,
   adminGetAllMatches,
+  endMatch,
 };

@@ -194,8 +194,22 @@ async function updateMessageStatus(messageId, userId, status) {
   }
 }
 
+async function deleteMessagesForMatch(matchId) {
+  try {
+    const result = await Message.deleteMany({ matchId: matchId });
+    return {
+      deletedCount: result.deletedCount,
+      message: `Deleted ${result.deletedCount} messages for match ${matchId}`
+    };
+  } catch (error) {
+    console.error("Error deleting messages for match:", error);
+    throw new Error(`Failed to delete messages: ${error.message}`);
+  }
+}
+
 module.exports = {
   sendMessage,
   getMessagesForMatch,
   updateMessageStatus,
+  deleteMessagesForMatch,
 };

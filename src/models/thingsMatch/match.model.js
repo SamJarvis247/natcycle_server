@@ -43,6 +43,17 @@ const matchSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    archivedReason: {
+      type: String,
+      enum: [
+        "item_given_away_to_other_user",
+        "user_request",
+        "admin_action",
+        "timeout",
+        "system_cleanup"
+      ],
+      required: false,
+    },
     // You might want to store the ID of the chat document if you create a separate chat model per match
     // chatId: {
     //   type: mongoose.Schema.Types.ObjectId,
