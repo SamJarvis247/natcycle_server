@@ -19,6 +19,10 @@ const dropOffLocationSchema = new mongoose.Schema({
     enum: ["redeem centre", "collection point", "sewage unit"],
     default: "collection point",
   },
+  website: {
+    type: String,
+    required: false,
+  },
   // Primary material type that this location accepts
   primaryMaterialType: {
     type: String,
