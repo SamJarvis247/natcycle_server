@@ -71,6 +71,31 @@ const thingsMatchUserAccount = mongoose.Schema({
     type: Number,
     required: false,
   },
+  fcmTokens: [
+    {
+      token: {
+        type: String,
+        required: true
+      },
+      deviceId: {
+        type: String,
+        required: false
+      },
+      platform: {
+        type: String,
+        enum: ['ios', 'android', 'web'],
+        required: false
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      lastUsed: {
+        type: Date,
+        default: Date.now
+      }
+    }
+  ]
 });
 
 // Add geospatial index for location field

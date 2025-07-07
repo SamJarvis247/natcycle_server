@@ -452,7 +452,7 @@ async function endMatch(matchId, userId) {
 }
 
 // Get all chats where the user is the itemSwiper
-exports.getMyChatsAsSwiper = async (userId, page = 1, limit = 10) => {
+const getMyChatsAsSwiper = async (userId, page = 1, limit = 10) => {
   try {
     // First, find all matches where user is itemSwiper and has messages
     const matches = await Match.find({
@@ -579,5 +579,5 @@ module.exports = {
   adminGetAllMatches,
   getMatchesForItem,
   endMatch,
-  getMyChatsAsSwiper,
+  getMyChatsAsSwiper
 };

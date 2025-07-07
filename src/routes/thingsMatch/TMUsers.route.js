@@ -1,5 +1,11 @@
 const { Router } = require("express");
 const TMUsersController = require("../../controllers/thingsMatch/TMUsers.controller.js");
+const fcmController = require("../../controllers/fcmController.js");
+const {
+  validateFCMTokenRegistration,
+  validateFCMTokenRemoval,
+  validateTestNotification
+} = require("../../validation/fcmValidation.js");
 const { isThingsMatchUser } = require("../../middleware/authMiddleware.js");
 
 const router = Router();
@@ -27,5 +33,11 @@ router.get("/nearby", TMUsersController.getNearbyUsers);
  * @query {number} limit - Items per page (optional, default: 10, max: 50)
  */
 router.get("/leaderboard", TMUsersController.getGlobalLeaderboard);
+
+// FCM Token Management Routes for ThingsMatch Users
+router.post("/fcm-token", validateFCMTokenRegistration, fcmController.registerFCMToken);
+router.delete("/fcm-token", validateFCMTokenRemoval, fcmController.removeFCMToken);
+router.get("/fcm-tokens", fcmController.getFCMTokens);
+router.post("/test-notification", validateTestNotification, fcmController.sendTestNotification);
 
 module.exports = router;

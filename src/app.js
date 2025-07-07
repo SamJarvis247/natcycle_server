@@ -13,6 +13,10 @@ const logRoute = require('./middleware/logRoute')
 // import cors config
 const corsConfig = require('./config/corsConfig')
 
+// Initialize Firebase Admin SDK
+const { initializeFirebase } = require('./config/firebaseConfig')
+initializeFirebase()
+
 // middleware
 app.use(cookieParser())
 app.use(helmet())

@@ -167,6 +167,31 @@ const UserSchema = mongoose.Schema(
         ref: 'Reward',
         default: []
       }
+    ],
+    fcmTokens: [
+      {
+        token: {
+          type: String,
+          required: true
+        },
+        deviceId: {
+          type: String,
+          required: false
+        },
+        platform: {
+          type: String,
+          enum: ['ios', 'android', 'web'],
+          required: false
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now
+        },
+        lastUsed: {
+          type: Date,
+          default: Date.now
+        }
+      }
     ]
   },
   {
