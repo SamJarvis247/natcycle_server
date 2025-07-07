@@ -106,6 +106,39 @@ const getUserMatches = catchAsync(async (req, res, next) => {
   });
 });
 
+// Get all chats where user is the itemSwiper with pagination
+const getMyChatsAsSwiper = catchAsync(async (req, res, next) => {
+  if (!req.TMID) {
+    return next(new AppError("User not authenticated for ThingsMatch", 401));
+  }
+
+  // Extract pagination parameters
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  // Validate pagination parameters
+  if (page < 1 || limit < 1 || limit > 100) {
+    return next(new AppError("Invalid pagination parameters. Page must be >= 1, limit must be between 1-100", 400));
+  }
+
+  const result = await matchService.getMyChatsAsSwiper(req.TMID, page, limit);
+
+  res.status(200).json({
+    status: "success",
+    results: result.chats.length,
+    pagination: {
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
+      totalChats: result.totalChats,
+      hasNextPage: result.hasNextPage,
+      hasPrevPage: result.hasPrevPage
+    },
+    data: {
+      chats: result.chats
+    },
+  });
+});
+
 const getMatchesForItem = catchAsync(async (req, res, next) => {
   if (!req.TMID) {
     return next(new AppError("User not authenticated for ThingsMatch", 401));
@@ -177,6 +210,7 @@ module.exports = {
   swipeAndSendDefaultMessage,
   confirmMatchByOwner,
   getUserMatches,
+  getMyChatsAsSwiper,
   getMatchDetails,
   getMatchesForItem,
   adminGetAllMatches,

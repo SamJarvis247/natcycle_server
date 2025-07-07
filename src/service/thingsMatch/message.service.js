@@ -29,7 +29,7 @@ async function populateSenderDetails(message) {
       if (senderTMUser) {
         messageObject.senderDetails = {
           thingsMatchId: senderTMUser._id,
-          name: "User", // Fallback name
+          name: "User",
         };
       } else {
         messageObject.senderDetails = null;
@@ -212,4 +212,5 @@ module.exports = {
   getMessagesForMatch,
   updateMessageStatus,
   deleteMessagesForMatch,
+  populateSenderDetails,
 };

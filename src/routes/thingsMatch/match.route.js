@@ -10,6 +10,9 @@ router.use(isThingsMatchUser);
 // Get all matches for the logged-in user
 router.get("/my-matches", thingsMatchMatchController.getUserMatches);
 
+// Get all chats where user is the itemSwiper (with pagination)
+router.get("/my-chats-as-swiper", thingsMatchMatchController.getMyChatsAsSwiper);
+
 // Get a specific match by its ID
 router.get("/single-match/:matchId", thingsMatchMatchController.getMatchDetails);
 

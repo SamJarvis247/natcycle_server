@@ -4,7 +4,8 @@ const Message = require("../../models/thingsMatch/message.model.js");
 const User = require("../../models/userModel.js");
 const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
 const itemService = require("./item.service.js");
-const messageService = require("./message.service.js"); // Will be created next
+const messageService = require("./message.service.js");
+const { populateSenderDetails } = require("./message.service.js");
 const mongoose = require("mongoose");
 
 // Called when an ItemSwiper swipes right and sends a default message
@@ -450,6 +451,125 @@ async function endMatch(matchId, userId) {
   }
 }
 
+// Get all chats where the user is the itemSwiper
+exports.getMyChatsAsSwiper = async (userId, page = 1, limit = 10) => {
+  try {
+    // First, find all matches where user is itemSwiper and has messages
+    const matches = await Match.find({
+      itemSwiperId: userId,
+      status: { $in: ["active", "pendingInterest"] }
+    }).sort({ updatedAt: -1 });
+
+    // Filter matches that have messages using Message collection
+    const matchesWithMessages = [];
+    for (const match of matches) {
+      const hasMessage = await Message.findOne({ matchId: match._id });
+      if (hasMessage) {
+        matchesWithMessages.push(match);
+      }
+    }
+
+    // Apply pagination after filtering
+    const totalDocuments = matchesWithMessages.length;
+    const totalPages = Math.ceil(totalDocuments / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+
+    if (page < 1 || (page > totalPages && totalPages > 0)) {
+      return {
+        success: false,
+        message: 'Invalid page number',
+        data: null
+      };
+    }
+
+    const paginatedMatches = matchesWithMessages.slice(startIndex, endIndex);
+
+    // Manual population using Promise.all pattern
+    const populatedMatches = await Promise.all(
+      paginatedMatches.map(async (match) => {
+        const matchObject = match.toObject ? match.toObject() : { ...match };
+        const matchId = matchObject._id;
+        const itemOwnerId = matchObject.itemOwnerId;
+        const itemSwiperId = matchObject.itemSwiperId;
+        const itemId = matchObject.itemId;
+
+        // Fetch all related data in parallel
+        const [itemOwnerUser, itemSwiperUser, latestMessage, item] = await Promise.all([
+          User.findOne({ thingsMatchAccount: itemOwnerId }),
+          User.findOne({ thingsMatchAccount: itemSwiperId }),
+          Message.findOne({ matchId: matchId }).sort({ createdAt: -1 }),
+          Item.findById(itemId)
+        ]);
+
+        // Enrich match object with populated data
+        matchObject.itemDetails = {
+          item: item || "Unknown Item"
+        };
+
+        matchObject.itemOwnerDetails = {
+          name: itemOwnerUser
+            ? `${itemOwnerUser.firstName} ${itemOwnerUser.lastName}`.trim()
+            : "Unknown User",
+          email: itemOwnerUser?.email || null,
+          profilePicture: itemOwnerUser?.profilePicture?.url || null
+        };
+
+        matchObject.itemSwiperDetails = {
+          name: itemSwiperUser
+            ? `${itemSwiperUser.firstName} ${itemSwiperUser.lastName}`.trim()
+            : "Unknown User",
+          email: itemSwiperUser?.email || null,
+          profilePicture: itemSwiperUser?.profilePicture?.url || null
+        };
+
+        // Add latest message details if exists
+        if (latestMessage) {
+          // Populate sender details for the latest message
+          const populatedMessage = await populateSenderDetails(latestMessage);
+          matchObject.latestMessage = populatedMessage;
+        } else {
+          matchObject.latestMessage = null;
+        }
+
+        matchObject.hasMessages = {
+          status: latestMessage ? true : false
+        };
+
+        // Indicate user's role in this match (always itemSwiper for this endpoint)
+        matchObject.userRole = {
+          itemOwner: false,
+          itemSwiper: true
+        };
+
+        return matchObject;
+      })
+    );
+
+    return {
+      success: true,
+      message: 'Chats retrieved successfully',
+      data: {
+        matches: populatedMatches,
+        pagination: {
+          page,
+          totalPages,
+          totalDocuments,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      }
+    };
+  } catch (error) {
+    console.error('Error in getMyChatsAsSwiper:', error);
+    return {
+      success: false,
+      message: 'Error retrieving chats',
+      data: null
+    };
+  }
+};
+
 module.exports = {
   createMatchOnSwipeAndSendDefaultMessage,
   confirmMatch,
@@ -459,4 +579,5 @@ module.exports = {
   adminGetAllMatches,
   getMatchesForItem,
   endMatch,
+  getMyChatsAsSwiper,
 };
