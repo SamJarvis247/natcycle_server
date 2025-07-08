@@ -1,12 +1,3 @@
-/**
- * Hierarchical Material Type Configuration
- *
- * This module defines the hierarchical relationship between primary material types
- * and their subtypes. Each primary type can have multiple subtypes.
- *
- * When a location accepts a primary material type, it is assumed to accept all
- * of its subtypes as well.
- */
 
 const materialTypeHierarchy = {
   // Primary type: plastic

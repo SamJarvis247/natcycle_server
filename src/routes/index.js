@@ -12,6 +12,9 @@ const campaignRoutes = require("./campaignRoutes");
 const dropOffLocationRoutes = require("./dropOffLocationRoutes");
 const dropOffRoutes = require("./dropOffRoutes");
 const materialRoutes = require("./materialRoutes");
+// SimpleDropOff routes
+const simpleDropOffLocationRoutes = require("./simpleDropOffLocationRoutes");
+const simpleDropOffRoutes = require("./simpleDropOffRoutes");
 
 //THINGS MATCH IMPORTS
 const thingsMatchAuthRoutes = require("./thingsMatch/auth.route");
@@ -32,6 +35,9 @@ router.use("/campaigns", campaignRoutes);
 router.use("/dropOff-location", dropOffLocationRoutes);
 router.use("/dropOff", dropOffRoutes);
 router.use("/materials", materialRoutes);
+// SimpleDropOff routes
+router.use("/simple-dropoff-locations", simpleDropOffLocationRoutes);
+router.use("/simple-dropoffs", simpleDropOffRoutes);
 
 //thingsmatch routes
 const thingsMatchPrefix = "/thingsMatch";
