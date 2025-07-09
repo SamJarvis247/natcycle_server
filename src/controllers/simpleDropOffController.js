@@ -40,8 +40,8 @@ exports.createSimpleDropOff = catchAsync(async (req, res) => {
 
   try {
     // Upload proof picture to Cloudinary
-    const uploadResult = await cloudinaryUpload.image(req.file.path);
-    if (!uploadResult) {
+    const result = await cloudinaryUpload.image(req.file.path);
+    if (!result) {
       return res.status(400).json({
         success: false,
         message: "Error uploading proof picture"
@@ -53,8 +53,8 @@ exports.createSimpleDropOff = catchAsync(async (req, res) => {
       materialType,
       quantity: quantity ? parseInt(quantity) : 1,
       proofPicture: {
-        public_id: uploadResult.public_id,
-        url: uploadResult.secure_url
+        public_id: result.public_id,
+        url: result.secure_url
       },
       gpsCoordinates: {
         type: "Point",

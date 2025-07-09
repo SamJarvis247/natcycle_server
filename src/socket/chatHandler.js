@@ -37,6 +37,7 @@ function initializeSocketIO(io) {
     });
 
     socket.on('sendMessage', async ({ matchId, content }) => {
+      console.log(`User ${socket.TMID} sending message in room ${matchId}: ${content}`);
       if (!content || String(content).trim() === "") {
         return socket.emit('chatError', { message: 'Message content cannot be empty.' });
       }
@@ -58,9 +59,11 @@ function initializeSocketIO(io) {
           ? match.itemSwiperId.toString()
           : match.itemOwnerId.toString();
 
+        console.log(`Sender ID: ${senderId}, Receiver ID: ${receiverId}, Match ID: ${matchId}, Content: ${content}`);
+
         const savedMessage = await messageService.sendMessage(matchId, senderId, receiverId, content, "custom");
 
-        io.to(matchId).emit('receiveMessage', savedMessage); // Emits populated message
+        io.to(matchId).emit('receiveMessage', savedMessage);
         console.log(`Message sent in room ${matchId} by ${senderId}: ${content}`);
 
       } catch (error) {

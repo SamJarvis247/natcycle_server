@@ -73,7 +73,7 @@ async function createSimpleDropOff(userId, dropOffData) {
       quantity: quantity || 1,
       proofPicture,
       cuEarned,
-      gpsCordinates: gpsCoordinates,
+      gpsCoordinates: gpsCoordinates,
       isVerified: !location.verificationRequired // Auto-verify if location doesn't require verification
     });
 

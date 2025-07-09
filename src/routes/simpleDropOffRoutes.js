@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const { isAuth } = require('../middleware/authMiddleware');
 const {
   checkAdminRole,
@@ -18,6 +17,9 @@ const {
   validateMongoId
 } = require('../validation/simpleDropOffValidation');
 
+// Use the shared Multer config
+const upload = require('../config/multerConfig');
+
 const {
   createSimpleDropOff,
   getUserSimpleDropOffs,
@@ -30,30 +32,6 @@ const {
   bulkVerifyDropOffs
 } = require('../controllers/simpleDropOffController');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + '.' + file.originalname.split('.').pop());
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  },
-  fileFilter: function (req, file, cb) {
-    // Accept only image files
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
-    }
-  }
-});
 
 /**
  * All routes require authentication
@@ -68,7 +46,7 @@ router.use(ensureUploadsDirectory);
 // Create a new simple drop-off (with proof picture)
 router.post('/',
   simpleDropOffRateLimit,
-  upload.single('proofPicture'),
+  upload.single('file'),
   handleFileUploadErrors,
   validateCreateSimpleDropOff,
   handleValidationErrors,

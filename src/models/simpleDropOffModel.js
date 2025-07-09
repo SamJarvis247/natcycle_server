@@ -47,7 +47,7 @@ const simpleDropOffModelSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  gpsCordinates: {
+  gpsCoordinates: {
     type: {
       type: String,
       enum: ['Point'],
