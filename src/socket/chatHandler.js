@@ -43,6 +43,7 @@ function initializeSocketIO(io) {
         return socket.emit('chatError', { message: 'Message content cannot be empty.' });
       }
       if (socket.currentRoom !== matchId) {
+        console.log(socket.currentRoom, "CURRENT ROOM")
         console.log("current room does not match MatchID")
         return socket.emit('chatError', { message: 'You are not in this room or trying to send to a different room.' });
       }
