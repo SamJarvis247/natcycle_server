@@ -83,6 +83,7 @@ exports.createSimpleDropOff = catchAsync(async (req, res) => {
  * Get user's simple drop-off history
  */
 exports.getUserSimpleDropOffs = catchAsync(async (req, res) => {
+  console.log(req.query, "User Simple Drop Offs Query");
   const {
     page,
     limit,

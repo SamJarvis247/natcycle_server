@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const ThingsMatchUser = require('../models/thingsMatch/user.model.js');
+const SimpleDropOffLocation = require('../models/simpleDropOffLocationModel.js');
 require('dotenv').config();
 
 /**
@@ -8,6 +9,7 @@ require('dotenv').config();
  * 1. Data migration from old location format to GeoJSON
  * 2. Ensures geospatial indexes are created
  * 3. Verifies data integrity
+ * 4. Sets up SimpleDropOffLocation indexes
  */
 
 const setupDatabase = async () => {
@@ -32,7 +34,10 @@ const setupDatabase = async () => {
     // Step 2: Ensure geospatial indexes
     await ensureGeospatialIndexes(collection);
 
-    // Step 3: Verify data integrity
+    // Step 3: Ensure SimpleDropOffLocation indexes
+    await ensureSimpleDropOffLocationIndexes();
+
+    // Step 4: Verify data integrity
     await verifyDataIntegrity(collection);
 
     console.log('🎉 Database setup completed successfully!');
@@ -177,10 +182,80 @@ const ensureGeospatialIndexes = async (collection) => {
 };
 
 /**
+ * Ensure SimpleDropOffLocation indexes exist
+ */
+const ensureSimpleDropOffLocationIndexes = async () => {
+  console.log('\n🔍 Step 3: Ensuring SimpleDropOffLocation indexes...');
+
+  try {
+    const collection = mongoose.connection.collection('simpledropofflocations');
+
+    // Check existing indexes
+    const indexes = await collection.getIndexes();
+    const indexNames = Object.keys(indexes);
+    console.log(`   Current SimpleDropOffLocation indexes: ${indexNames.join(', ')}`);
+
+    // Create geospatial index for location field
+    const hasLocationIndex = indexNames.includes('location_2dsphere');
+    if (!hasLocationIndex) {
+      console.log('   🔧 Creating geospatial index for SimpleDropOffLocation...');
+      await collection.createIndex({ location: "2dsphere" }, {
+        name: "location_2dsphere",
+        background: true
+      });
+      console.log('   ✅ SimpleDropOffLocation geospatial index created');
+    } else {
+      console.log('   ✅ SimpleDropOffLocation geospatial index already exists');
+    }
+
+    // Create compound index for materialType and isActive
+    const hasMaterialActiveIndex = indexNames.includes('materialType_1_isActive_1');
+    if (!hasMaterialActiveIndex) {
+      console.log('   🔧 Creating materialType + isActive index...');
+      await collection.createIndex(
+        { materialType: 1, isActive: 1 },
+        {
+          name: "materialType_1_isActive_1",
+          background: true
+        }
+      );
+      console.log('   ✅ MaterialType + isActive index created');
+    } else {
+      console.log('   ✅ MaterialType + isActive index already exists');
+    }
+
+    // Create index for organizationName (text search)
+    const hasOrgIndex = indexNames.includes('organizationName_text');
+    if (!hasOrgIndex) {
+      console.log('   🔧 Creating text index for organizationName...');
+      await collection.createIndex(
+        { organizationName: "text", name: "text" },
+        {
+          name: "organizationName_text",
+          background: true
+        }
+      );
+      console.log('   ✅ OrganizationName text index created');
+    } else {
+      console.log('   ✅ OrganizationName text index already exists');
+    }
+
+    // Verify all indexes
+    const finalIndexes = await collection.getIndexes();
+    const finalIndexNames = Object.keys(finalIndexes);
+    console.log(`   Final SimpleDropOffLocation indexes: ${finalIndexNames.join(', ')}`);
+
+  } catch (error) {
+    console.error('   ❌ SimpleDropOffLocation index creation failed:', error);
+    throw error;
+  }
+};
+
+/**
  * Verify data integrity after migration and indexing
  */
 const verifyDataIntegrity = async (collection) => {
-  console.log('\n✅ Step 3: Verifying data integrity...');
+  console.log('\n✅ Step 4: Verifying data integrity...');
 
   try {
     // Get all documents
@@ -270,6 +345,7 @@ module.exports = {
   setupDatabase,
   migrateLocationData,
   ensureGeospatialIndexes,
+  ensureSimpleDropOffLocationIndexes,
   verifyDataIntegrity
 };
 

@@ -78,7 +78,6 @@ router.post('/',
 // Get user's own simple drop-off history
 router.get('/my-dropoffs',
   validatePagination,
-  handleValidationErrors,
   getUserSimpleDropOffs
 );
 
