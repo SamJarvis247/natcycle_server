@@ -122,19 +122,19 @@ const getMyChatsAsSwiper = catchAsync(async (req, res, next) => {
   }
 
   const result = await matchService.getMyChatsAsSwiper(req.TMID, page, limit);
+  console.log("🚀 ~ getMyChatsAsSwiper ~ result:", result)
 
   res.status(200).json({
     status: "success",
-    results: result.chats.length,
+    results: result.data.matches.length,
     pagination: {
-      currentPage: result.currentPage,
-      totalPages: result.totalPages,
-      totalChats: result.totalChats,
-      hasNextPage: result.hasNextPage,
-      hasPrevPage: result.hasPrevPage
+      currentPage: result.data.pagination.page,
+      totalPages: result.data.pagination.totalPages,
+      hasNextPage: result.data.pagination.hasNextPage,
+      hasPrevPage: result.data.pagination.hasPrevPage
     },
     data: {
-      chats: result.chats
+      chats: result.data.matches
     },
   });
 });

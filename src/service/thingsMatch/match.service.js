@@ -468,6 +468,7 @@ const getMyChatsAsSwiper = async (userId, page = 1, limit = 10) => {
         matchesWithMessages.push(match);
       }
     }
+    console.log("Has messages matches:", matchesWithMessages.length);
 
     // Apply pagination after filtering
     const totalDocuments = matchesWithMessages.length;
