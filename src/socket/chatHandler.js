@@ -39,9 +39,11 @@ function initializeSocketIO(io) {
     socket.on('sendMessage', async ({ matchId, content }) => {
       console.log(`User ${socket.TMID} sending message in room ${matchId}: ${content}`);
       if (!content || String(content).trim() === "") {
+        console.log("content is empty...")
         return socket.emit('chatError', { message: 'Message content cannot be empty.' });
       }
       if (socket.currentRoom !== matchId) {
+        console.log("current room does not match MatchID")
         return socket.emit('chatError', { message: 'You are not in this room or trying to send to a different room.' });
       }
 
