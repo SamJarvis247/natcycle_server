@@ -41,10 +41,10 @@ async function createSimpleDropOff(userId, dropOffData) {
       location.location.coordinates[0]
     );
 
-    // Allow 100m tolerance
-    if (distanceToLocation > 0.1) { // 0.1 km = 100m
-      throw new Error("You must be within 100 meters of the drop-off location");
-    }
+    // // Allow 100m tolerance
+    // if (distanceToLocation > 0.1) { // 0.1 km = 100m
+    //   throw new Error("You must be within 100 meters of the drop-off location");
+    // }
 
     // Check daily drop-off limit per user per location
     const today = new Date();
