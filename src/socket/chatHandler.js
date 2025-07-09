@@ -63,6 +63,8 @@ function initializeSocketIO(io) {
 
         const savedMessage = await messageService.sendMessage(matchId, senderId, receiverId, content, "custom");
 
+        console.log(savedMessage, "Saved Message, should be sent to room");
+
         io.to(matchId).emit('receiveMessage', savedMessage);
         console.log(`Message sent in room ${matchId} by ${senderId}: ${content}`);
 
