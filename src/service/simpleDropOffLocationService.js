@@ -1,5 +1,5 @@
-const SimpleDropOffLocation = require("../models/simpleDropOffLocationModel");
-const { getPrimaryMaterialTypes } = require("../models/enums/materialTypeHierarchy");
+const SimpleDropOffLocation = require("../models/simpleDropOffLocationModel.js");
+const { getPrimaryMaterialTypes } = require("../models/enums/materialTypeHierarchy.js");
 
 /**
  * Create a new simple drop-off location
@@ -74,7 +74,13 @@ async function getAllSimpleDropOffLocations(options = {}) {
       populate: []
     };
 
-    return await SimpleDropOffLocation.paginate(query, paginateOptions);
+    console.log("Paginate Options:", paginateOptions, "Query:", query);
+
+    return await SimpleDropOffLocation.find(query)
+      .sort(sortOptions)
+      .skip((paginateOptions.page - 1) * paginateOptions.limit)
+      .limit(paginateOptions.limit)
+      .populate(paginateOptions.populate);
   } catch (error) {
     console.error("Error fetching simple drop-off locations:", error);
     throw error;
@@ -207,6 +213,7 @@ async function getNearbySimpleDropOffLocations(userCoordinates, options = {}) {
  */
 async function verifyLocationStatus(locationId, isVerified) {
   try {
+    console.log("Verifying location status:", locationId, isVerified);
     const updatedLocation = await SimpleDropOffLocation.findByIdAndUpdate(
       locationId,
       {

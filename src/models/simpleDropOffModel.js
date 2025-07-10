@@ -74,6 +74,6 @@ const simpleDropOffModelSchema = new mongoose.Schema({
 simpleDropOffModelSchema.plugin(mongoosePaginate);
 simpleDropOffModelSchema.index({ gpsCordinates: '2dsphere' });
 
-const SimpleDropOffModel = mongoose.model('SimpleDropOffModel', simpleDropOffModelSchema);
+const SimpleDropOff = mongoose.model('SimpleDropOff', simpleDropOffModelSchema);
 
-module.exports = SimpleDropOffModel;
+module.exports = SimpleDropOff;

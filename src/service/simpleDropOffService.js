@@ -1,8 +1,8 @@
-const SimpleDropOff = require("../models/simpleDropOffModel");
-const SimpleDropOffLocation = require("../models/simpleDropOffLocationModel");
-const Material = require("../models/materialModel");
-const User = require("../models/userModel");
-const { getPrimaryMaterialTypes } = require("../models/enums/materialTypeHierarchy");
+const SimpleDropOff = require("../models/simpleDropOffModel.js");
+const SimpleDropOffLocation = require("../models/simpleDropOffLocationModel.js");
+const Material = require("../models/materialModel.js");
+const User = require("../models/userModel.js");
+const { getPrimaryMaterialTypes } = require("../models/enums/materialTypeHierarchy.js");
 
 /**
  * Create a new simple drop-off entry

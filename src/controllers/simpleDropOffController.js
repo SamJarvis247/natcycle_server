@@ -1,6 +1,7 @@
-const { catchAsync } = require("../utility/catchAsync");
-const simpleDropOffService = require("../service/simpleDropOffService");
-const cloudinaryUpload = require("../config/cloudinaryUpload");
+const { catchAsync } = require("../utility/catchAsync.js");
+const SimpleDropOff = require("../models/simpleDropOffModel.js");
+const simpleDropOffService = require("../service/simpleDropOffService.js");
+const cloudinaryUpload = require("../config/cloudinaryUpload.js");
 
 /**
  * Create a new simple drop-off
@@ -263,7 +264,7 @@ exports.getAllSimpleDropOffs = catchAsync(async (req, res) => {
   const sortOptions = {};
   sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-  const SimpleDropOff = require("../models/simpleDropOffModel");
+
 
   const paginateOptions = {
     page: parseInt(page),
@@ -274,8 +275,13 @@ exports.getAllSimpleDropOffs = catchAsync(async (req, res) => {
       { path: 'simpleDropOffLocation', select: 'name materialType organizationName address' }
     ]
   };
+  console.log("Paginate Options:", paginateOptions, "Query:", query);
 
-  const result = await SimpleDropOff.paginate(query, paginateOptions);
+  const result = await SimpleDropOff.find(query)
+    .sort(sortOptions)
+    .skip((paginateOptions.page - 1) * paginateOptions.limit)
+    .limit(paginateOptions.limit)
+    .populate(paginateOptions.populate);
 
   res.status(200).json({
     success: true,
