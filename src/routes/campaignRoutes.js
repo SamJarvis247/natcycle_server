@@ -1,26 +1,127 @@
-const express = require('express')
-const router = express.Router()
+const express = require('express');
+const router = express.Router();
+const { isAuth } = require('../middleware/authMiddleware');
+const {
+  checkAdminRole,
+  handleValidationErrors,
+  handleFileUploadErrors,
+  ensureUploadsDirectory
+} = require('../middleware/simpleDropOffMiddleware');
+const {
+  validateCreateCampaign,
+  validateUpdateCampaign,
+  validateGetCampaigns,
+  validateGetNearbyCampaigns,
+  validateGetContributors,
+  validateDateRange,
+  validateMongoId,
+  validatePagination,
+  validateCreateCampaignDropOff
+} = require('../validation/campaignValidation');
+
+// Use the shared Multer config
+const upload = require('../config/multerConfig');
 
 const {
-  getCampaigns,
-  getCampaign,
   createCampaign,
+  getCampaigns,
+  getNearbyCampaigns,
+  getCampaignById,
   updateCampaign,
-  deleteCampaign, getContributors
-} = require('../controllers/campaignController')
+  deleteCampaign,
+  getCampaignContributors,
+  getCampaignStats,
+  createCampaignDropOff
+} = require('../controllers/campaignController');
 
-const { isAuth, isAdmin } = require('../middleware/authMiddleware')
+/**
+ * Public routes (no authentication required)
+ */
 
-router.get('/', getCampaigns)
+// Get all campaigns with pagination and filtering
+router.get('/',
+  validateGetCampaigns,
+  handleValidationErrors,
+  getCampaigns
+);
 
-router.get('/:id', getCampaign)
+// Get nearby campaigns based on location
+router.get('/nearby',
+  validateGetNearbyCampaigns,
+  handleValidationErrors,
+  getNearbyCampaigns
+);
 
-router.post('/', isAuth, isAdmin, createCampaign)
+// Get campaign statistics
+router.get('/stats',
+  validateDateRange,
+  handleValidationErrors,
+  getCampaignStats
+);
 
-router.put('/:id', isAuth, isAdmin, updateCampaign)
+// Get campaign by ID
+router.get('/:id',
+  validateMongoId,
+  handleValidationErrors,
+  getCampaignById
+);
 
-router.delete('/:id', isAuth, isAdmin, deleteCampaign)
+// Get campaign contributors
+router.get('/:id/contributors',
+  validateGetContributors,
+  handleValidationErrors,
+  getCampaignContributors
+);
 
-router.get('/:id/contributors', getContributors)
+/**
+ * Protected routes (authentication required)
+ */
+router.use(isAuth);
+router.use(ensureUploadsDirectory);
 
-module.exports = router
+/**
+ * Admin routes
+ */
+
+// Create a new campaign (Admin only)
+router.post('/',
+  checkAdminRole,
+  upload.single('file'),
+  handleFileUploadErrors,
+  validateCreateCampaign,
+  handleValidationErrors,
+  createCampaign
+);
+
+// Update campaign (Admin only)
+router.put('/:id',
+  checkAdminRole,
+  upload.single('file'),
+  handleFileUploadErrors,
+  validateUpdateCampaign,
+  handleValidationErrors,
+  updateCampaign
+);
+
+// Delete campaign (Admin only)
+router.delete('/:id',
+  checkAdminRole,
+  validateMongoId,
+  handleValidationErrors,
+  deleteCampaign
+);
+
+/**
+ * Campaign drop-off routes
+ */
+
+// Create a drop-off at a campaign location (Authenticated users)
+router.post('/:id/dropoff',
+  upload.single('file'),
+  handleFileUploadErrors,
+  validateCreateCampaignDropOff,
+  handleValidationErrors,
+  createCampaignDropOff
+);
+
+module.exports = router;

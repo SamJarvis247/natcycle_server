@@ -8,6 +8,6 @@ module.exports = {
   options: {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    // Add any other options here
+    maxPoolSize: 100,
   },
 };

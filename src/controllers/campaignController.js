@@ -1,270 +1,290 @@
-const Campaign = require('../models/campaignModel')
-const cloudinaryUpload = require('../config/cloudinaryUpload')
-const PickUp = require('../models/pickUpModel')
-const User = require('../models/userModel')
-const DropOffLocation = require('../models/dropOffLocationModel')
+const { catchAsync } = require('../utility/catchAsync');
+const campaignService = require('../service/campaignService');
+const cloudinaryUpload = require('../config/cloudinaryUpload');
 
-exports.createCampaign = async (req, res) => {
-  const { name, description, endDate, goal, dropOffLocationId } = req.body
+/**
+ * Create a new campaign
+ */
+exports.createCampaign = catchAsync(async (req, res) => {
+  const {
+    name,
+    organizationName,
+    latitude,
+    longitude,
+    address,
+    description,
+    startDate,
+    endDate,
+    status,
+    goal,
+    itemType,
+    dropOffLocationId
+  } = req.body;
 
-  try {
-    const findCampaign = await Campaign.findOne({
-      name
-    })
-
-    if (findCampaign) {
+  // Validate and upload image if provided
+  let image = null;
+  if (req.file) {
+    const result = await cloudinaryUpload.image(req.file.path);
+    if (!result) {
       return res.status(400).json({
-        message: 'Campaign with name already exists'
-      })
+        success: false,
+        message: 'Error uploading image'
+      });
     }
+    image = {
+      public_id: result.public_id,
+      url: result.secure_url
+    };
+  }
 
-    const findDropOffLocation = await DropOffLocation.findOne({
-      _id: dropOffLocationId
-    })
+  const campaignData = {
+    name,
+    organizationName,
+    latitude,
+    longitude,
+    address,
+    description,
+    startDate,
+    endDate,
+    status,
+    goal,
+    itemType,
+    dropOffLocationId,
+    image
+  };
 
-    if (!findDropOffLocation) {
+  const newCampaign = await campaignService.createCampaign(campaignData);
+
+  res.status(201).json({
+    success: true,
+    message: 'Campaign created successfully',
+    data: newCampaign
+  });
+});
+
+/**
+ * Get all campaigns with pagination and filtering
+ */
+exports.getCampaigns = catchAsync(async (req, res) => {
+  const {
+    page,
+    limit,
+    status,
+    itemType,
+    organizationName,
+    sortBy,
+    sortOrder,
+    includeInactive
+  } = req.query;
+
+  const options = {
+    page,
+    limit,
+    status,
+    itemType,
+    organizationName,
+    sortBy,
+    sortOrder,
+    includeInactive: includeInactive === 'true'
+  };
+
+  const campaigns = await campaignService.getCampaigns(options);
+
+  res.status(200).json({
+    success: true,
+    message: 'Campaigns fetched successfully',
+    data: campaigns
+  });
+});
+
+/**
+ * Get nearby campaigns based on location
+ */
+exports.getNearbyCampaigns = catchAsync(async (req, res) => {
+  const { latitude, longitude, radius, limit, itemType, status } = req.query;
+
+  const options = {
+    radius,
+    limit,
+    itemType,
+    status
+  };
+
+  const campaigns = await campaignService.getNearbyCampaigns(
+    parseFloat(latitude),
+    parseFloat(longitude),
+    options
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Nearby campaigns fetched successfully',
+    data: campaigns
+  });
+});
+
+/**
+ * Get campaign by ID with statistics
+ */
+exports.getCampaignById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await campaignService.getCampaignById(id);
+
+  res.status(200).json({
+    success: true,
+    message: 'Campaign fetched successfully',
+    data: result
+  });
+});
+
+/**
+ * Update campaign
+ */
+exports.updateCampaign = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  // Handle image upload if provided
+  if (req.file) {
+    const result = await cloudinaryUpload.image(req.file.path);
+    if (!result) {
       return res.status(400).json({
-        message: 'Drop off location not found'
-      })
+        success: false,
+        message: 'Error uploading image'
+      });
     }
+    updateData.image = {
+      public_id: result.public_id,
+      url: result.secure_url
+    };
+  }
 
-    const fileStr = req.body.image
-    if (!fileStr) {
+  const updatedCampaign = await campaignService.updateCampaign(id, updateData);
+
+  res.status(200).json({
+    success: true,
+    message: 'Campaign updated successfully',
+    data: updatedCampaign
+  });
+});
+
+/**
+ * Delete campaign
+ */
+exports.deleteCampaign = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await campaignService.deleteCampaign(id);
+
+  res.status(200).json({
+    success: true,
+    ...result
+  });
+});
+
+/**
+ * Get campaign contributors
+ */
+exports.getCampaignContributors = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { page, limit } = req.query;
+
+  const options = { page, limit };
+  const result = await campaignService.getCampaignContributors(id, options);
+
+  res.status(200).json({
+    success: true,
+    message: 'Campaign contributors fetched successfully',
+    data: result
+  });
+});
+
+/**
+ * Get campaign statistics
+ */
+exports.getCampaignStats = catchAsync(async (req, res) => {
+  const { startDate, endDate, status, itemType } = req.query;
+
+  const filters = { startDate, endDate, status, itemType };
+  const stats = await campaignService.getCampaignStats(filters);
+
+  res.status(200).json({
+    success: true,
+    message: 'Campaign statistics fetched successfully',
+    data: stats
+  });
+});
+
+/**
+ * Create a drop-off directly at a campaign location
+ */
+exports.createCampaignDropOff = catchAsync(async (req, res) => {
+  const { id: campaignId } = req.params;
+  const {
+    itemType,
+    dropOffQuantity,
+    description,
+    latitude,
+    longitude
+  } = req.body;
+
+  // Validate required fields
+  if (!itemType || !dropOffQuantity || !latitude || !longitude) {
+    return res.status(400).json({
+      success: false,
+      message: "Item type, drop-off quantity, and GPS coordinates are required"
+    });
+  }
+
+  // Validate and upload proof picture
+  let proofPicture = null;
+  if (req.file) {
+    const result = await cloudinaryUpload.image(req.file.path);
+    if (!result) {
       return res.status(400).json({
-        message: 'image is required'
-      })
+        success: false,
+        message: 'Error uploading proof picture'
+      });
     }
-    const result = await cloudinaryUpload.image(fileStr)
+    proofPicture = {
+      public_id: result.public_id,
+      url: result.secure_url
+    };
+  }
 
-    const newCampaign = new Campaign({
-      name,
-      description,
-      endDate,
-      itemType: findDropOffLocation.itemType,
-      goal,
-      image: {
-        public_id: result.public_id,
-        url: result.secure_url
-      },
-      dropOffLocation: findDropOffLocation._id
-    })
-
-    await newCampaign.save()
-
-    return res.status(201).json({
-      message: 'Campaign added successfully',
-      data: newCampaign
-    })
-  } catch (err) {
+  // Validate coordinates
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
     return res.status(400).json({
-      message: err.message
-    })
-  }
-}
-
-exports.getCampaign = async (req, res) => {
-  const { id } = req.params
-
-  if (!id) {
-    return res.status(400).json({
-      message: 'an id must be included'
-    })
+      success: false,
+      message: "Invalid coordinates provided"
+    });
   }
 
-  try {
-    const campaign = await Campaign.findById(id)
+  const dropOffData = {
+    itemType,
+    dropOffQuantity,
+    description,
+    latitude,
+    longitude,
+    proofPicture
+  };
 
-    if (!campaign) {
-      return res.status(404).json({
-        message: 'Campaign not found'
-      })
-    }
+  const newDropOff = await campaignService.createCampaignDropOff(req.user._id, campaignId, dropOffData);
 
-    // get the number of pickups for this campaign using countDocuments
-    const pickups = await PickUp.countDocuments({
-      campaign: id
-    })
+  res.status(201).json({
+    success: true,
+    message: 'Campaign drop-off completed successfully! You earned extra CU for participating in this campaign.',
+    data: newDropOff
+  });
+});
 
-    return res.status(200).json({
-      data: {
-        campaign,
-        pickupCount: pickups || 0
-      },
-      message: 'Campaign fetched successfully'
-    })
-  } catch (err) {
-    return res.status(500).json({
-      message: err.message
-    })
-  }
-}
+/**
+ * Alias for getCampaignById (backward compatibility)
+ */
+exports.getCampaign = exports.getCampaignById;
 
-exports.getCampaigns = async (req, res) => {
-  const { page = 1, limit = 10, status, id } = req.query
-
-  try {
-    // if there is an id just return that campaign
-    if (id) {
-      const campaign = await Campaign.findById(id)
-
-      if (!campaign) {
-        return res.status(404).json({
-          message: 'Campaign not found'
-        })
-      }
-
-      return res.status(200).json({
-        data: campaign,
-        message: 'Campaign fetched successfully'
-      })
-    }
-
-    const query = {}
-
-    if (status) {
-      query.status = status
-    }
-
-    const campaigns = await Campaign.paginate(query, {
-      page,
-      limit,
-      sort: {
-        createdAt: -1
-      }
-    })
-
-    return res.status(200).json({
-      data: campaigns,
-      message: 'Campaigns fetched successfully'
-    })
-  } catch (err) {
-    return res.status(500).json({
-      message: err.message
-    })
-  }
-}
-
-exports.updateCampaign = async (req, res) => {
-  const { id } = req.params
-  const { name, description, startDate, endDate, material, goal } = req.body
-
-  try {
-    const campaign = await Campaign.findById(id)
-
-    if (!campaign) {
-      return res.status(404).json({
-        message: 'Campaign not found'
-      })
-    }
-
-    let image
-
-    if (req.body.image) {
-      const imageUpload = await cloudinaryUpload.image(req.body.image)
-
-      if (imageUpload) {
-        image = {
-          public_id: imageUpload.public_id,
-          url: imageUpload.secure_url
-        }
-      }
-
-      // if there is an old image, delete it
-      if (campaign.image.public_id) {
-        await cloudinaryUpload.deleteImage(campaign.image.public_id)
-      }
-    }
-
-    campaign.name = name
-    campaign.description = description
-    campaign.startDate = startDate
-    campaign.endDate = endDate
-    campaign.material = material
-    campaign.goal = goal
-    if (image) campaign.image = image
-
-    await campaign.save()
-
-    return res.status(200).json({
-      message: 'Campaign updated successfully',
-      data: campaign
-    })
-  } catch (err) {
-    return res.status(400).json({
-      message: err.message
-    })
-  }
-}
-
-exports.deleteCampaign = async (req, res) => {
-  const { id } = req.params
-
-  if (!id) {
-    return res.status(400).json({
-      message: 'an id must be included'
-    })
-  }
-
-  try {
-    await Campaign.findByIdAndDelete(id)
-
-    return res.status(200).json({
-      message: 'successfully deleted the campaign'
-    })
-  } catch (err) {
-    return res.status(500).json({
-      message: err.message
-    })
-  }
-}
-
-exports.getContributors = async (req, res) => {
-  const { id } = req.params
-
-  if (!id) {
-    return res.status(400).json({
-      message: 'an id must be included'
-    })
-  }
-
-  try {
-    const campaign = await Campaign.findById(id)
-
-    if (!campaign) {
-      return res.status(404).json({
-        message: 'Campaign not found'
-      })
-    }
-
-    const pickups = await PickUp.find({
-      campaign: id
-    })
-
-    const userIds = [...new Set(pickups.map(pickup => pickup.user._id.toString()))]
-
-    // Fetch users by their IDs
-    const users = await User.find({ _id: { $in: userIds } })
-      .select('firstName lastName email profilePicture')
-
-    // Calculate the number of contributions for each user
-    const userContributions = users.map(user => {
-      const contributions = pickups.filter(pickup => pickup.user._id.toString() === user._id.toString()).length
-      return {
-        ...user.toObject(),
-        contributions
-      }
-    })
-
-    return res.status(200).json({
-      data: {
-        users: userContributions,
-        pickupCount: pickups.length
-      },
-      message: 'Contributors fetched successfully'
-    })
-  } catch (err) {
-    return res.status(500).json({
-      message: err.message
-    })
-  }
-}
+/**
+ * Alias for getCampaignContributors (backward compatibility)
+ */
+exports.getContributors = exports.getCampaignContributors;

@@ -294,10 +294,6 @@ const validateDateRange = [
  * Common ID validation
  */
 const validateMongoId = [
-  (req, res, next) => {
-    console.log("Validating Mongo ID", req.params);
-    next();
-  },
   param('id')
     .isMongoId()
     .withMessage('Invalid ID format')

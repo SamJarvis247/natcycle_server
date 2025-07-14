@@ -1,4 +1,3 @@
-// Add this near the top of your file
 const cronScheduler = require("./src/cron");
 const http = require("http");
 const { Server } = require("socket.io");
