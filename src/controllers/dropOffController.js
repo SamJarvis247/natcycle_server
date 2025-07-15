@@ -157,6 +157,10 @@ exports.getDropOffs = async (req, res) => {
           path: "dropOffLocation",
           select: "name address ",
         },
+        {
+          path: "campaign",
+          select: "name organizationName",
+        }
       ],
     });
 
@@ -180,7 +184,8 @@ exports.getDropOffById = async (req, res) => {
   try {
     const dropOff = await DropOff.findById(dropOffId)
       .populate("dropOffLocation")
-      .populate("user");
+      .populate("user")
+      .populate("campaign");
 
     if (!dropOff) {
       return res.status(404).json({ message: "Drop off not found" });
@@ -246,6 +251,10 @@ exports.adminGetDropOffs = async (req, res) => {
           path: "dropOffLocation",
           select: "name address",
         },
+        {
+          path: "campaign",
+          select: "name organizationName",
+        }
       ],
     });
 
@@ -321,16 +330,22 @@ exports.getUserDropOffs = catchAsync(async (req, res) => {
   // Get all drop offs for the user
   const dropOffs = await DropOff.find({
     user: userId,
-  });
+  }).populate("campaign", "name organizationName")
   const populateDropOffLocation = await Promise.all(
     dropOffs.map(async (dropOff) => {
       const dropOffObject = dropOff.toObject() ? dropOff.toObject() : dropOff;
-      const dropOffLocation = await DropOffLocation.findById(
-        dropOffObject.dropOffLocation.toString()
-      ).catch((err) => {
-        console.log("Error finding drop off location:", err);
-        return null;
-      });
+      console.log("🚀 ~ dropOffs.map ~ dropOffObject:", dropOffObject)
+      let dropOffLocation = null;
+      if (dropOffObject.dropOffLocation) {
+        dropOffLocation = await DropOffLocation.findById(
+          dropOffObject.dropOffLocation.toString()
+        ).catch((err) => {
+          console.log("Error finding drop off location:", err);
+          return null;
+        });
+      } else {
+        dropOffLocation = null;
+      }
 
       if (dropOffLocation) {
         dropOffObject.dropOffLocation = dropOffLocation;

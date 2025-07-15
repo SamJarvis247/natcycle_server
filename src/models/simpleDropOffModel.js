@@ -31,6 +31,11 @@ const simpleDropOffModelSchema = new mongoose.Schema({
     url: {
       type: String,
       required: true
+    },
+    resource_type: {
+      type: String,
+      enum: ['image', 'video'],
+      default: 'image'
     }
   },
   cuEarned: {

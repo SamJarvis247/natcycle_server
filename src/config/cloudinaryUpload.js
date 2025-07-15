@@ -17,7 +17,7 @@ exports.image = (image) => {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload(image, options, (err, result) => {
       if (err) {
-        console.log(err)
+        console.log(err, "Error uploading image to Cloudinary")
         reject(err)
       } else {
         resolve(result)
@@ -27,9 +27,10 @@ exports.image = (image) => {
 }
 
 const videoOptions = {
-  resource_type: 'raw',
+  resource_type: 'video',
   overwrite: true,
-  invalidate: true
+  invalidate: true,
+  folder: 'natcycle_videos'
 }
 
 exports.audio = (video) => {
@@ -37,7 +38,20 @@ exports.audio = (video) => {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload(video, videoOptions, (err, result) => {
       if (err) {
-        console.log(err)
+        console.log(err, "Error uploading audio to Cloudinary")
+        reject(err)
+      } else {
+        resolve(result)
+      }
+    })
+  })
+}
+
+exports.video = (video) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(video, videoOptions, (err, result) => {
+      if (err) {
+        console.log(err, "Error uploading video to Cloudinary")
         reject(err)
       } else {
         resolve(result)

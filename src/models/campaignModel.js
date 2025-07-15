@@ -51,15 +51,19 @@ const campaignSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  contributors: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   status: {
     type: String,
     default: 'active',
     enum: ['active', 'completed', 'cancelled']
   },
-  itemType: {
+  materialTypes: [{
     type: String,
-    enum: getPrimaryMaterialTypes()
-  },
+    enum: getPrimaryMaterialTypes(),
+  }],
   goal: {
     type: Number
   },

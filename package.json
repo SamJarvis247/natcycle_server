@@ -10,14 +10,16 @@
     "build": "npm run setup:database",
     "seed:items": "node src/scripts/seedItems.js",
     "seed:dropoffs": "node src/scripts/seedDropOffLocations.js",
+    "seed:campaigns": "node src/scripts/seedCampaigns.js",
     "seed:simple-dropoffs": "node src/scripts/seedSimpleDropOffLocations.js",
     "seed:simple-dropoffs-test": "node src/scripts/runSimpleDropOffSeed.js",
     "seed:materials": "node src/scripts/seedMaterials.js",
-    "seed:all": "npm run seed:dropoffs && npm run seed:simple-dropoffs && npm run seed:items && npm run seed:materials",
+    "seed:all": "npm run seed:dropoffs && npm run seed:simple-dropoffs && npm run seed:campaigns && npm run seed:items && npm run seed:materials",
     "seed:force-dropoffs": "node src/scripts/seedDropOffLocations.js 20 force",
     "seed:force-items": "node src/scripts/seedItems.js 30 force",
     "clear:items": "node src/scripts/clearItems.js",
-    "clear:dropoffs": "node src/scripts/clearDropOffs.js"
+    "clear:dropoffs": "node src/scripts/clearDropOffs.js",
+    "clear:campaigns": "node src/scripts/clearCampaigns.js"
   },
   "author": "Jarvis Dev",
   "license": "MIT",

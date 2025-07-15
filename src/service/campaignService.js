@@ -10,7 +10,7 @@ const { getPrimaryMaterialTypes } = require('../models/enums/materialTypeHierarc
  */
 async function createCampaign(campaignData) {
   try {
-    const { name, organizationName, latitude, longitude, address, description, startDate, endDate, status, goal, itemType, dropOffLocationId, image } = campaignData;
+    const { name, organizationName, latitude, longitude, address, description, startDate, endDate, status, goal, materialTypes, dropOffLocationId, image } = campaignData;
 
     // Check if campaign name already exists
     const existingCampaign = await Campaign.findOne({ name });
@@ -18,9 +18,24 @@ async function createCampaign(campaignData) {
       throw new Error('Campaign with this name already exists');
     }
 
-    // Validate material type if provided
-    if (itemType && !getPrimaryMaterialTypes().includes(itemType)) {
-      throw new Error(`Invalid material type: ${itemType}`);
+    // Process materialTypes array
+    let processedMaterialTypes = [];
+    console.log(materialTypes, "The MaterialTypes");
+
+    // If materialTypes contains 'All', include all available material types
+    if (materialTypes && Array.isArray(materialTypes) && materialTypes.length === 1 && materialTypes[0] === 'All') {
+      processedMaterialTypes = getPrimaryMaterialTypes();
+    }
+    // Otherwise validate each material type
+    else if (materialTypes && Array.isArray(materialTypes)) {
+      const validTypes = getPrimaryMaterialTypes();
+      const invalidTypes = materialTypes.filter(type => !validTypes.includes(type));
+
+      if (invalidTypes.length > 0) {
+        throw new Error(`Invalid material types: ${invalidTypes.join(', ')}`);
+      }
+
+      processedMaterialTypes = materialTypes;
     }
 
     // Verify drop-off location exists if provided
@@ -53,7 +68,7 @@ async function createCampaign(campaignData) {
       startDate: start,
       endDate: end,
       status: status || 'active',
-      itemType,
+      materialTypes: processedMaterialTypes,
       goal: goal || 0,
       image,
       dropOffLocation: dropOffLocationId || null
@@ -79,17 +94,20 @@ async function getCampaigns(options = {}) {
       page = 1,
       limit = 10,
       status,
-      itemType,
+      materialType,
       organizationName,
       sortBy = 'createdAt',
       sortOrder = 'desc',
       includeInactive = false
     } = options;
 
-    const query = {};
+    const query = {}; if (status) query.status = status;
 
-    if (status) query.status = status;
-    if (itemType) query.itemType = itemType;
+    // Filter by material type if provided
+    if (materialType) {
+      query.materialTypes = { $in: [materialType] }; // Check if materialType is in the array
+    }
+
     if (organizationName) query.organizationName = { $regex: organizationName, $options: 'i' };
     if (!includeInactive) query.isHidden = { $ne: true };
 
@@ -120,7 +138,7 @@ async function getNearbyCampaigns(latitude, longitude, options = {}) {
     const {
       radius = 5000, // 5km default
       limit = 20,
-      itemType,
+      materialType,
       status = 'active'
     } = options;
 
@@ -138,7 +156,10 @@ async function getNearbyCampaigns(latitude, longitude, options = {}) {
       isHidden: { $ne: true }
     };
 
-    if (itemType) query.itemType = itemType;
+    // Filter by material type if provided
+    if (materialType) {
+      query.materialTypes = { $in: [materialType] }; // Check if materialType is in the array
+    }
 
     // Only get active campaigns or campaigns that haven't ended
     const now = new Date();
@@ -205,9 +226,26 @@ async function updateCampaign(campaignId, updateData) {
       throw new Error('Campaign not found');
     }
 
-    // Validate material type if being updated
-    if (updateData.itemType && !getPrimaryMaterialTypes().includes(updateData.itemType)) {
-      throw new Error(`Invalid material type: ${updateData.itemType}`);
+    // Validate material types if being updated
+    if (updateData.materialTypes) {
+      let processedMaterialTypes = [];
+
+      // If materialTypes contains 'All', include all available material types
+      if (Array.isArray(updateData.materialTypes) && updateData.materialTypes.length === 1 && updateData.materialTypes[0] === 'All') {
+        processedMaterialTypes = getPrimaryMaterialTypes();
+        updateData.materialTypes = processedMaterialTypes;
+      }
+      // Otherwise validate each material type
+      else if (Array.isArray(updateData.materialTypes)) {
+        const validTypes = getPrimaryMaterialTypes();
+        const invalidTypes = updateData.materialTypes.filter(type => !validTypes.includes(type));
+
+        if (invalidTypes.length > 0) {
+          throw new Error(`Invalid material types: ${invalidTypes.join(', ')}`);
+        }
+      } else {
+        throw new Error('Material types must be an array');
+      }
     }
 
     // Validate dates if being updated
@@ -344,11 +382,100 @@ async function getCampaignContributors(campaignId, options = {}) {
 }
 
 /**
+ * Get contributors for a specific campaign
+ * @param {string} campaignId - The ID of the campaign
+ * @param {Object} options - Pagination options
+ * @returns {Promise<Object>} Contributors with pagination info
+ */
+async function getCampaignContributorsDetails(campaignId, options = {}) {
+  try {
+    const { page = 1, limit = 10 } = options;
+
+    // Find the campaign and validate
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    if (!campaign.contributors || campaign.contributors.length === 0) {
+      return {
+        contributors: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalContributors: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        }
+      };
+    }
+
+    // Set up pagination
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count
+    const totalContributors = campaign.contributors.length;
+
+    // Get paginated contributors with relevant details
+    const contributorIds = campaign.contributors.slice(skip, skip + limitNum);
+
+    const contributors = await User.find(
+      { _id: { $in: contributorIds } },
+      'firstName lastName email phoneNumber profilePicture'
+    );
+
+    // Get contribution stats for each contributor
+    const contributorStats = await Promise.all(
+      contributors.map(async (contributor) => {
+        const dropoffs = await DropOff.find({
+          user: contributor._id,
+          campaign: campaignId
+        });
+
+        const totalDropoffs = dropoffs.length;
+        const totalCU = dropoffs.reduce((sum, dropoff) => sum + (dropoff.pointsEarned || 0), 0);
+        const firstContribution = dropoffs.length > 0 ?
+          dropoffs.sort((a, b) => a.createdAt - b.createdAt)[0].createdAt : null;
+        const lastContribution = dropoffs.length > 0 ?
+          dropoffs.sort((a, b) => b.createdAt - a.createdAt)[0].createdAt : null;
+
+        return {
+          user: contributor,
+          totalContributions: totalDropoffs,
+          totalCU,
+          firstContribution,
+          lastContribution
+        };
+      })
+    );
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalContributors / limitNum);
+
+    return {
+      contributors: contributorStats,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalContributors,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      }
+    };
+  } catch (error) {
+    console.error('Error getting campaign contributors:', error);
+    throw error;
+  }
+}
+
+/**
  * Get campaign statistics
  */
 async function getCampaignStats(filters = {}) {
   try {
-    const { startDate, endDate, status, itemType } = filters;
+    const { startDate, endDate, status, materialType } = filters;
 
     const matchQuery = {};
 
@@ -359,7 +486,9 @@ async function getCampaignStats(filters = {}) {
     }
 
     if (status) matchQuery.status = status;
-    if (itemType) matchQuery.itemType = itemType;
+    if (materialType) {
+      matchQuery.materialTypes = { $in: [materialType] };
+    }
 
     const stats = await Campaign.aggregate([
       { $match: matchQuery },
@@ -382,11 +511,14 @@ async function getCampaignStats(filters = {}) {
       }
     ]);
 
-    const itemTypeStats = await Campaign.aggregate([
+    // Now we need to handle materialTypes differently since it's an array
+    // We'll unwind the array and then group by each material type
+    const materialTypeStats = await Campaign.aggregate([
       { $match: matchQuery },
+      { $unwind: '$materialTypes' }, // Unwind the array to have one document per material type
       {
         $group: {
-          _id: '$itemType',
+          _id: '$materialTypes',
           count: { $sum: 1 },
           totalGoal: { $sum: '$goal' },
           totalProgress: { $sum: '$progress' }
@@ -394,7 +526,7 @@ async function getCampaignStats(filters = {}) {
       },
       {
         $project: {
-          itemType: '$_id',
+          materialType: '$_id',
           count: 1,
           totalGoal: 1,
           totalProgress: 1,
@@ -412,7 +544,7 @@ async function getCampaignStats(filters = {}) {
         totalGoal: 0,
         totalProgress: 0
       },
-      byItemType: itemTypeStats
+      byMaterialType: materialTypeStats
     };
   } catch (error) {
     console.error('Error fetching campaign statistics:', error);
@@ -425,7 +557,7 @@ async function getCampaignStats(filters = {}) {
  */
 async function createCampaignDropOff(userId, campaignId, dropOffData) {
   try {
-    const { itemType, dropOffQuantity, description, latitude, longitude, proofPicture } = dropOffData;
+    const { materialType, dropOffQuantity, description, latitude, longitude, proofPicture } = dropOffData;
 
     // Get the campaign details
     const campaign = await Campaign.findById(campaignId).populate('dropOffLocation');
@@ -448,9 +580,9 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
       throw new Error('Campaign has not started yet');
     }
 
-    // Validate material type matches campaign
-    if (campaign.itemType && campaign.itemType !== itemType) {
-      throw new Error(`This campaign only accepts ${campaign.itemType} items, but you're trying to drop off ${itemType}`);
+    // Validate material type matches campaign's accepted materials
+    if (campaign.materialTypes && campaign.materialTypes.length > 0 && !campaign.materialTypes.includes(materialType)) {
+      throw new Error(`This campaign only accepts ${campaign.materialTypes.join(', ')} materials, but you're trying to drop off ${materialType}`);
     }
 
     // Validate user location is within range (100m tolerance)
@@ -461,10 +593,11 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
       campaign.location.coordinates[0]  // campaign longitude
     );
 
-    const maxDistance = 0.1; // 100 meters in kilometers
-    if (distanceToLocation > maxDistance) {
-      throw new Error(`You must be within 100 meters of the campaign location. You are ${Math.round(distanceToLocation * 1000)}m away.`);
-    }
+    const maxDistance = 0.01; // 40 meters in kilometers
+    // if (distanceToLocation > maxDistance) {
+    //   throw new Error(`You must be within 400 meters of the campaign location. You are ${Math.round(distanceToLocation * 1000)}m away.`);
+    // }
+    // TODO: DO LATER
 
     // Validate and process dropOffQuantity
     let mainQuantity;
@@ -486,7 +619,7 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
     const dropOff = new DropOff({
       dropOffLocation: campaign.dropOffLocation ? campaign.dropOffLocation._id : null,
       user: userId,
-      itemType,
+      itemType: materialType,
       dropOffQuantity: mainQuantity,
       itemQuantity: totalItemUnits,
       description: description || `Drop-off at campaign: ${campaign.name}`,
@@ -498,6 +631,7 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
         coordinates: [parseFloat(longitude), parseFloat(latitude)]
       }
     });
+    console.log(dropOff, "THe NEW DROPOFF")
 
     // Calculate and update user CU
     let calculatedTotalCUforDropOff = 0;
@@ -522,9 +656,8 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
       try {
         const cuResult = await cuCalculationService.updateUserCU(
           user._id,
-          itemType,
+          item.materialType,
           item.units,
-          item.materialType
         );
 
         if (cuResult && typeof cuResult.addedCU === 'number') {
@@ -544,18 +677,21 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
     // Update campaign progress
     campaign.progress = (campaign.progress || 0) + totalItemUnits;
 
+    // Add user to contributors array if not already there
+    if (!campaign.contributors || !campaign.contributors.includes(userId)) {
+      if (!campaign.contributors) {
+        campaign.contributors = [];
+      }
+      campaign.contributors.push(userId);
+    }
+
     // Save both the drop-off and updated campaign
     await Promise.all([
-      dropOff.save(),
+      dropOff.save().catch(err => {
+        console.log(err, "Error in Saving Dropoff")
+      }),
       campaign.save()
     ]);
-
-    // Update user's NAT Points if service exists
-    try {
-      await cuCalculationService.updateUserNatPoints(userId, user.carbonUnits + calculatedTotalCUforDropOff);
-    } catch (natPointsError) {
-      console.warn('Could not update NAT Points:', natPointsError.message);
-    }
 
     return await DropOff.findById(dropOff._id)
       .populate('dropOffLocation', 'name address')
@@ -587,6 +723,141 @@ function toRadians(degrees) {
   return degrees * (Math.PI / 180);
 }
 
+/**
+ * Get all campaign dropoffs
+ * @param {Object} options - Options for filtering and pagination
+ * @returns {Promise<Object>} Campaign dropoffs with pagination
+ */
+async function getAllCampaignDropOffs(options = {}) {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      campaignId,
+      userId,
+      startDate,
+      endDate,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = options;
+
+    const query = { campaign: { $exists: true, $ne: null } };
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Configure sort options
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Query with pagination
+    const DropOff = require('../models/dropOffModel');
+    const paginateOptions = {
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      sort,
+      populate: [
+        { path: 'user', select: 'firstName lastName email profilePicture' },
+        { path: 'campaign', select: 'name organizationName' },
+        { path: 'dropOffLocation', select: 'name address' }
+      ]
+    };
+
+    const result = await DropOff.paginate(query, paginateOptions);
+
+    return {
+      dropOffs: result.docs,
+      pagination: {
+        currentPage: result.page,
+        totalPages: result.totalPages,
+        totalDropOffs: result.totalDocs,
+        hasNextPage: result.hasNextPage,
+        hasPrevPage: result.hasPrevPage
+      }
+    };
+  } catch (error) {
+    console.error('Error getting campaign dropoffs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all drop-offs for a specific campaign with pagination
+ */
+async function getCampaignDropOffs(campaignId, options = {}) {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      startDate,
+      endDate,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = options;
+
+    // Validate campaign exists
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    // Build query for drop-offs related to this campaign
+    const query = { campaign: campaignId };
+
+    // Add date filters if provided
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Configure sort options
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Query with pagination
+    const DropOff = require('../models/dropOffModel');
+    const paginateOptions = {
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      sort,
+      populate: [
+        { path: 'user', select: 'firstName lastName email profilePicture' },
+        { path: 'campaign', select: 'name organizationName' },
+        { path: 'dropOffLocation', select: 'name address' }
+      ]
+    };
+
+    const result = await DropOff.paginate(query, paginateOptions);
+
+    return {
+      campaignName: campaign.name,
+      dropOffs: result.docs,
+      pagination: {
+        currentPage: result.page,
+        totalPages: result.totalPages,
+        totalDropOffs: result.totalDocs,
+        hasNextPage: result.hasNextPage,
+        hasPrevPage: result.hasPrevPage
+      }
+    };
+  } catch (error) {
+    console.error(`Error getting dropoffs for campaign ${campaignId}:`, error);
+    throw error;
+  }
+}
+
 module.exports = {
   createCampaign,
   getCampaigns,
@@ -596,5 +867,8 @@ module.exports = {
   deleteCampaign,
   getCampaignContributors,
   getCampaignStats,
-  createCampaignDropOff
+  createCampaignDropOff,
+  getAllCampaignDropOffs,
+  getCampaignContributorsDetails,
+  getCampaignDropOffs
 };

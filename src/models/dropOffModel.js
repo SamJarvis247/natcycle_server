@@ -11,12 +11,10 @@ const dropOffSchema = new mongoose.Schema(
     dropOffLocation: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "DropOffLocation",
-      required: true,
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     itemType: {
       type: String,

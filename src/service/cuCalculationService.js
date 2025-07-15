@@ -14,6 +14,7 @@ async function calculateCU(materialCategory, materialSpecific, quantity) {
       materialQuery.subCategory = materialSpecific;
     }
 
+    console.log(materialQuery, "Material Query");
     const material = await Material.findOne(materialQuery);
 
     if (!material) {

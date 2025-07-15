@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "args": [
+        "node",
+        "c:\\Users\\user\\documents\\byte\\natcycle\\natcycle_server\\server.js"
+      ],
+      "command": "node",
+      "group": "test",
+      "isBackground": true,
+      "label": "Run NatCycle Server",
+      "problemMatcher": ["$eslint-stylish"],
+      "type": "shell"
+    }
+  ]
+}

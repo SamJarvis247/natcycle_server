@@ -40,12 +40,18 @@ exports.createSimpleDropOff = catchAsync(async (req, res) => {
   }
 
   try {
-    // Upload proof picture to Cloudinary
-    const result = await cloudinaryUpload.image(req.file.path);
+    // Determine if the file is a video or an image
+    const isVideo = req.file.mimetype.startsWith('video/');
+
+    // Upload proof picture/video to Cloudinary using appropriate method
+    const result = isVideo
+      ? await cloudinaryUpload.video(req.file.path)
+      : await cloudinaryUpload.image(req.file.path);
+
     if (!result) {
       return res.status(400).json({
         success: false,
-        message: "Error uploading proof picture"
+        message: "Error uploading proof media"
       });
     }
 
@@ -55,7 +61,8 @@ exports.createSimpleDropOff = catchAsync(async (req, res) => {
       quantity: quantity ? parseInt(quantity) : 1,
       proofPicture: {
         public_id: result.public_id,
-        url: result.secure_url
+        url: result.secure_url,
+        resource_type: isVideo ? 'video' : 'image'
       },
       gpsCoordinates: {
         type: "Point",

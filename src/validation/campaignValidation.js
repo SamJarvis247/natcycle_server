@@ -5,6 +5,10 @@ const { getPrimaryMaterialTypes } = require('../models/enums/materialTypeHierarc
  * Validation for creating campaign
  */
 const validateCreateCampaign = [
+  body('*').custom((value, { req }) => {
+    console.log('Create Campaign Request Body:', req.body);
+    return true;
+  }),
   body('name')
     .trim()
     .notEmpty()
@@ -72,10 +76,28 @@ const validateCreateCampaign = [
     .isIn(['active', 'completed', 'cancelled'])
     .withMessage('Status must be one of: active, completed, cancelled'),
 
-  body('itemType')
+  body('materialTypes')
     .optional()
-    .isIn(getPrimaryMaterialTypes())
-    .withMessage(`Item type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
+    .custom((value) => {
+      if (!value) return true;
+
+      // Handle special case "All"
+      if (Array.isArray(value) && value.length === 1 && value[0] === 'All') {
+        return true;
+      }
+
+      // Check each item in the array
+      if (Array.isArray(value)) {
+        const validTypes = getPrimaryMaterialTypes();
+        const invalidTypes = value.filter(type => !validTypes.includes(type));
+        if (invalidTypes.length > 0) {
+          throw new Error(`Invalid material types: ${invalidTypes.join(', ')}`);
+        }
+        return true;
+      }
+
+      throw new Error('Material types must be an array');
+    }),
 
   body('goal')
     .optional()
@@ -149,10 +171,28 @@ const validateUpdateCampaign = [
     .isIn(['active', 'completed', 'cancelled'])
     .withMessage('Status must be one of: active, completed, cancelled'),
 
-  body('itemType')
+  body('materialTypes')
     .optional()
-    .isIn(getPrimaryMaterialTypes())
-    .withMessage(`Item type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
+    .custom((value) => {
+      if (!value) return true;
+
+      // Handle special case "All"
+      if (Array.isArray(value) && value.length === 1 && value[0] === 'All') {
+        return true;
+      }
+
+      // Check each item in the array
+      if (Array.isArray(value)) {
+        const validTypes = getPrimaryMaterialTypes();
+        const invalidTypes = value.filter(type => !validTypes.includes(type));
+        if (invalidTypes.length > 0) {
+          throw new Error(`Invalid material types: ${invalidTypes.join(', ')}`);
+        }
+        return true;
+      }
+
+      throw new Error('Material types must be an array');
+    }),
 
   body('goal')
     .optional()
@@ -194,10 +234,10 @@ const validateGetCampaigns = [
     .isIn(['active', 'completed', 'cancelled'])
     .withMessage('Status must be one of: active, completed, cancelled'),
 
-  query('itemType')
+  query('materialType')
     .optional()
     .isIn(getPrimaryMaterialTypes())
-    .withMessage(`Item type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
+    .withMessage(`Material type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
 
   query('organizationName')
     .optional()
@@ -235,7 +275,7 @@ const validateGetNearbyCampaigns = [
 
   query('radius')
     .optional()
-    .isInt({ min: 100, max: 50000 })
+    .isInt({ min: 50, max: 50000 })
     .withMessage('Radius must be between 100 and 50000 meters'),
 
   query('limit')
@@ -243,10 +283,10 @@ const validateGetNearbyCampaigns = [
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100'),
 
-  query('itemType')
+  query('materialType')
     .optional()
     .isIn(getPrimaryMaterialTypes())
-    .withMessage(`Item type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
+    .withMessage(`Material type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
 
   query('status')
     .optional()
@@ -261,6 +301,25 @@ const validateGetContributors = [
   param('id')
     .isMongoId()
     .withMessage('Invalid campaign ID'),
+
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100')
+];
+
+/**
+ * Validation for getting campaign contributors details
+ */
+const validateGetContributorsDetails = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid campaign ID format'),
 
   query('page')
     .optional()
@@ -330,9 +389,9 @@ const validateCreateCampaignDropOff = [
     .isMongoId()
     .withMessage('Invalid campaign ID'),
 
-  body('itemType')
+  body('materialType')
     .isIn(getPrimaryMaterialTypes())
-    .withMessage(`Item type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
+    .withMessage(`Material type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
 
   body('dropOffQuantity')
     .notEmpty()
@@ -364,12 +423,100 @@ const validateCreateCampaignDropOff = [
   body('longitude')
     .isFloat({ min: -180, max: 180 })
     .withMessage('Longitude must be between -180 and 180'),
+];
 
-  body('description')
+/**
+ * Validation for getting all campaign dropoffs
+ */
+const validateGetCampaignDropOffs = [
+  query('page')
     .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Description must not exceed 500 characters')
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+
+  query('startDate')
+    .optional()
+    .isISO8601()
+    .withMessage('Start date must be a valid date'),
+
+  query('endDate')
+    .optional()
+    .isISO8601()
+    .withMessage('End date must be a valid date')
+    .custom((endDate, { req }) => {
+      if (req.query.startDate && endDate) {
+        const start = new Date(req.query.startDate);
+        const end = new Date(endDate);
+        if (end < start) {
+          throw new Error('End date must be after start date');
+        }
+      }
+      return true;
+    }),
+
+  query('sortBy')
+    .optional()
+    .isIn(['createdAt', 'itemQuantity', 'pointsEarned'])
+    .withMessage('Sort by must be one of: createdAt, itemQuantity, pointsEarned'),
+
+  query('sortOrder')
+    .optional()
+    .isIn(['asc', 'desc'])
+    .withMessage('Sort order must be asc or desc')
+];
+
+/**
+ * Validate get campaign dropoffs by ID
+ */
+const validateGetCampaignDropOffsById = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid campaign ID format'),
+
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+
+  query('startDate')
+    .optional()
+    .isISO8601()
+    .withMessage('Start date must be a valid date'),
+
+  query('endDate')
+    .optional()
+    .isISO8601()
+    .withMessage('End date must be a valid date')
+    .custom((endDate, { req }) => {
+      if (req.query.startDate && endDate) {
+        const start = new Date(req.query.startDate);
+        const end = new Date(endDate);
+        if (end < start) {
+          throw new Error('End date must be after start date');
+        }
+      }
+      return true;
+    }),
+
+  query('sortBy')
+    .optional()
+    .isIn(['createdAt', 'itemQuantity', 'pointsEarned'])
+    .withMessage('Sort by must be one of: createdAt, itemQuantity, pointsEarned'),
+
+  query('sortOrder')
+    .optional()
+    .isIn(['asc', 'desc'])
+    .withMessage('Sort order must be either asc or desc')
 ];
 
 module.exports = {
@@ -381,5 +528,8 @@ module.exports = {
   validateDateRange,
   validateMongoId,
   validatePagination,
-  validateCreateCampaignDropOff
+  validateCreateCampaignDropOff,
+  validateGetCampaignDropOffs,
+  validateGetContributorsDetails,
+  validateGetCampaignDropOffsById
 };

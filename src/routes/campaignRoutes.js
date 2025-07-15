@@ -16,8 +16,11 @@ const {
   validateDateRange,
   validateMongoId,
   validatePagination,
-  validateCreateCampaignDropOff
-} = require('../validation/campaignValidation');
+  validateCreateCampaignDropOff,
+  validateGetCampaignDropOffs,
+  validateGetContributorsDetails,
+  validateGetCampaignDropOffsById
+} = require('../validation/campaignValidation.js');
 
 // Use the shared Multer config
 const upload = require('../config/multerConfig');
@@ -31,7 +34,10 @@ const {
   deleteCampaign,
   getCampaignContributors,
   getCampaignStats,
-  createCampaignDropOff
+  createCampaignDropOff,
+  getCampaignDropOffs,
+  getCampaignContributorsDetails,
+  getCampaignDropOffsById
 } = require('../controllers/campaignController');
 
 /**
@@ -59,6 +65,13 @@ router.get('/stats',
   getCampaignStats
 );
 
+// Get all campaign dropoffs (Public route)
+router.get('/dropoffs',
+  validateGetCampaignDropOffs,
+  handleValidationErrors,
+  getCampaignDropOffs
+);
+
 // Get campaign by ID
 router.get('/:id',
   validateMongoId,
@@ -73,6 +86,13 @@ router.get('/:id/contributors',
   getCampaignContributors
 );
 
+// Get all dropoffs for a specific campaign
+router.get('/:id/dropoffs',
+  validateGetCampaignDropOffsById,
+  handleValidationErrors,
+  getCampaignDropOffsById
+);
+
 /**
  * Protected routes (authentication required)
  */
@@ -82,6 +102,16 @@ router.use(ensureUploadsDirectory);
 /**
  * Admin routes
  */
+
+
+
+// Get detailed contributors for a specific campaign (Admin only)
+router.get('/:id/contributors/details',
+  checkAdminRole,
+  validateGetContributorsDetails,
+  handleValidationErrors,
+  getCampaignContributorsDetails
+);
 
 // Create a new campaign (Admin only)
 router.post('/',

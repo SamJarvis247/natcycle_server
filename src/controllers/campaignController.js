@@ -6,6 +6,7 @@ const cloudinaryUpload = require('../config/cloudinaryUpload');
  * Create a new campaign
  */
 exports.createCampaign = catchAsync(async (req, res) => {
+  console.log("🔥REQ BODY", req.body)
   const {
     name,
     organizationName,
@@ -17,7 +18,7 @@ exports.createCampaign = catchAsync(async (req, res) => {
     endDate,
     status,
     goal,
-    itemType,
+    materialTypes,
     dropOffLocationId
   } = req.body;
 
@@ -35,6 +36,12 @@ exports.createCampaign = catchAsync(async (req, res) => {
       public_id: result.public_id,
       url: result.secure_url
     };
+  } else {
+    console.log("Image upload skipped, no file provided", req.file);
+    return res.status(400).json({
+      success: false,
+      message: 'Image is required'
+    });
   }
 
   const campaignData = {
@@ -48,7 +55,7 @@ exports.createCampaign = catchAsync(async (req, res) => {
     endDate,
     status,
     goal,
-    itemType,
+    materialTypes,
     dropOffLocationId,
     image
   };
@@ -70,7 +77,7 @@ exports.getCampaigns = catchAsync(async (req, res) => {
     page,
     limit,
     status,
-    itemType,
+    materialType,
     organizationName,
     sortBy,
     sortOrder,
@@ -81,7 +88,7 @@ exports.getCampaigns = catchAsync(async (req, res) => {
     page,
     limit,
     status,
-    itemType,
+    materialType,
     organizationName,
     sortBy,
     sortOrder,
@@ -101,12 +108,12 @@ exports.getCampaigns = catchAsync(async (req, res) => {
  * Get nearby campaigns based on location
  */
 exports.getNearbyCampaigns = catchAsync(async (req, res) => {
-  const { latitude, longitude, radius, limit, itemType, status } = req.query;
+  const { latitude, longitude, radius, limit, materialType, status } = req.query;
 
   const options = {
     radius,
     limit,
-    itemType,
+    materialType: materialType, // Map materialType from request to materialType for service
     status
   };
 
@@ -201,12 +208,33 @@ exports.getCampaignContributors = catchAsync(async (req, res) => {
 });
 
 /**
+ * Get detailed contributor information for a specific campaign
+ * @route GET /api/campaigns/:id/contributors/details
+ * @access Admin only
+ */
+exports.getCampaignContributorsDetails = catchAsync(async (req, res) => {
+  const { id: campaignId } = req.params;
+  const { page, limit } = req.query;
+
+  const result = await campaignService.getCampaignContributorsDetails(campaignId, {
+    page,
+    limit
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: 'Campaign contributors details fetched successfully',
+    data: result
+  });
+});
+
+/**
  * Get campaign statistics
  */
 exports.getCampaignStats = catchAsync(async (req, res) => {
   const { startDate, endDate, status, itemType } = req.query;
 
-  const filters = { startDate, endDate, status, itemType };
+  const filters = { startDate, endDate, status, materialType: itemType };
   const stats = await campaignService.getCampaignStats(filters);
 
   res.status(200).json({
@@ -220,9 +248,10 @@ exports.getCampaignStats = catchAsync(async (req, res) => {
  * Create a drop-off directly at a campaign location
  */
 exports.createCampaignDropOff = catchAsync(async (req, res) => {
+  console.log(req.body, "THE BODY")
   const { id: campaignId } = req.params;
   const {
-    itemType,
+    materialType,
     dropOffQuantity,
     description,
     latitude,
@@ -230,10 +259,10 @@ exports.createCampaignDropOff = catchAsync(async (req, res) => {
   } = req.body;
 
   // Validate required fields
-  if (!itemType || !dropOffQuantity || !latitude || !longitude) {
+  if (!materialType || !dropOffQuantity || !latitude || !longitude) {
     return res.status(400).json({
       success: false,
-      message: "Item type, drop-off quantity, and GPS coordinates are required"
+      message: "Material type, drop-off quantity, and GPS coordinates are required"
     });
   }
 
@@ -262,7 +291,7 @@ exports.createCampaignDropOff = catchAsync(async (req, res) => {
   }
 
   const dropOffData = {
-    itemType,
+    materialType: materialType,
     dropOffQuantity,
     description,
     latitude,
@@ -276,6 +305,75 @@ exports.createCampaignDropOff = catchAsync(async (req, res) => {
     success: true,
     message: 'Campaign drop-off completed successfully! You earned extra CU for participating in this campaign.',
     data: newDropOff
+  });
+});
+
+/**
+ * Get all campaign dropoffs
+ * @route GET /api/campaigns/dropoffs
+ * @access Admin only
+ */
+exports.getCampaignDropOffs = catchAsync(async (req, res) => {
+  const {
+    page,
+    limit,
+    campaignId,
+    userId,
+    startDate,
+    endDate,
+    sortBy,
+    sortOrder
+  } = req.query;
+
+  const options = {
+    page,
+    limit,
+    userId,
+    startDate,
+    endDate,
+    sortBy,
+    sortOrder
+  };
+
+  const result = await campaignService.getAllCampaignDropOffs(options);
+  console.log("🚀 ~ exports.getCampaignDropOffs=catchAsync ~ result:", result)
+
+  return res.status(200).json({
+    success: true,
+    message: 'Campaign dropoffs fetched successfully',
+    data: result
+  });
+});
+
+/**
+ * Get all dropoffs for a specific campaign
+ */
+exports.getCampaignDropOffsById = catchAsync(async (req, res) => {
+  const { id: campaignId } = req.params;
+  const {
+    page,
+    limit,
+    startDate,
+    endDate,
+    sortBy,
+    sortOrder
+  } = req.query;
+
+  const options = {
+    page,
+    limit,
+    startDate,
+    endDate,
+    sortBy,
+    sortOrder
+  };
+
+  const result = await campaignService.getCampaignDropOffs(campaignId, options);
+
+  return res.status(200).json({
+    success: true,
+    message: 'Campaign dropoffs fetched successfully',
+    data: result
   });
 });
 
