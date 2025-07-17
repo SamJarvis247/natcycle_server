@@ -30,6 +30,7 @@ const getUserById = catchAsync(async (req, res) => {
     const id = req.params.id;
     //get user by id
     const user = await thingsMatchAuthService.getUserById(id);
+    console.log("🚀 ~ getUserById ~ user:", user)
 
     return successResponse(res, {
       message: "User fetched successfully",

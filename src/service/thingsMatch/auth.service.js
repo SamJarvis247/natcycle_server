@@ -2,6 +2,9 @@ const ThingsMatchUser = require("../../models/thingsMatch/user.model.js");
 const User = require("../../models/userModel.js");
 const getCoordinates = require("../../utility/geocode.js");
 const jwt = require("jsonwebtoken");
+//analytics
+const runAnalytics = require("../../analytics/main.js");
+const endpoints = require("../../analytics/endpoints.js");
 
 // Helper to verify JWT token
 function getUserFromToken(token) {
@@ -143,6 +146,18 @@ async function getUser(thingsMatchAccountId) {
 
 //admin services
 async function getAllUsers() {
+  if (endpoints.includes("getAllUsers")) {
+    console.log("Running analytics for getAllUsers endpoint");
+    runAnalytics({
+      model: ThingsMatchUser,
+      type: "find",
+      populate: true,
+      fieldToPopulate: "natcycleId",
+      populateFields: ["firstName", "lastName", "email", "profilePicture", "phoneNumber"]
+    }).catch(error => {
+      console.error("Error running analytics for getAllUsers:", error);
+    });
+  }
   const users = await ThingsMatchUser.find().populate(
     "natcycleId",
     "firstName lastName email profilePicture phoneNumber"
@@ -150,6 +165,19 @@ async function getAllUsers() {
   return users;
 }
 async function getUserById(thingsMatchAccountId) {
+  if (endpoints.includes("getTMUserById")) {
+    console.log("Running analytics for getUserById endpoint");
+    runAnalytics({
+      model: ThingsMatchUser,
+      type: "findById",
+      whereValue: { _id: thingsMatchAccountId },
+      populate: true,
+      fieldToPopulate: "natcycleId",
+      populateFields: ["firstName", "lastName", "email", "profilePicture", "phoneNumber"]
+    }).catch(error => {
+      console.error("Error running analytics for getUserById:", error);
+    });
+  }
   const user = await ThingsMatchUser.findById(thingsMatchAccountId).populate(
     "natcycleId",
     "firstName lastName email profilePicture phoneNumber"

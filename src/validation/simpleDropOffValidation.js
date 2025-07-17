@@ -20,10 +20,6 @@ const validateCreateSimpleDropOffLocation = [
     .isFloat({ min: -180, max: 180 })
     .withMessage('Longitude must be between -180 and 180'),
 
-  body('materialType')
-    .isIn(getPrimaryMaterialTypes())
-    .withMessage(`Material type must be one of: ${getPrimaryMaterialTypes().join(', ')}`),
-
   body('address')
     .optional()
     .trim()
@@ -56,7 +52,30 @@ const validateCreateSimpleDropOffLocation = [
     .optional()
     .trim()
     .matches(/^[\+]?[1-9][\d]{0,15}$/)
-    .withMessage('Contact number must be a valid phone number')
+    .withMessage('Contact number must be a valid phone number'),
+
+  body('bulkMaterialTypes')
+    .optional()
+    .isArray()
+    .withMessage('Bulk material types must be an array')
+    .custom((value) => {
+      if (value && Array.isArray(value)) {
+        // If contains 'All', it should be the only element
+        if (value.includes('All') && value.length > 1) {
+          throw new Error('If "All" is selected, no other material types should be included');
+        }
+
+        // If not 'All', validate each material type
+        if (!value.includes('All')) {
+          const validTypes = getPrimaryMaterialTypes();
+          const invalidTypes = value.filter(type => !validTypes.includes(type));
+          if (invalidTypes.length > 0) {
+            throw new Error(`Invalid bulk material types: ${invalidTypes.join(', ')}`);
+          }
+        }
+      }
+      return true;
+    })
 ];
 
 /**
@@ -115,7 +134,30 @@ const validateUpdateSimpleDropOffLocation = [
   body('maxItemsPerDropOff')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('Max items per drop-off must be between 1 and 100')
+    .withMessage('Max items per drop-off must be between 1 and 100'),
+
+  body('bulkMaterialTypes')
+    .optional()
+    .isArray()
+    .withMessage('Bulk material types must be an array')
+    .custom((value) => {
+      if (value && Array.isArray(value)) {
+        // If contains 'All', it should be the only element
+        if (value.includes('All') && value.length > 1) {
+          throw new Error('If "All" is selected, no other material types should be included');
+        }
+
+        // If not 'All', validate each material type
+        if (!value.includes('All')) {
+          const validTypes = getPrimaryMaterialTypes();
+          const invalidTypes = value.filter(type => !validTypes.includes(type));
+          if (invalidTypes.length > 0) {
+            throw new Error(`Invalid bulk material types: ${invalidTypes.join(', ')}`);
+          }
+        }
+      }
+      return true;
+    })
 ];
 
 /**

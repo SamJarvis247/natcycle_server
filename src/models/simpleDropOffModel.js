@@ -19,6 +19,12 @@ const simpleDropOffModelSchema = new mongoose.Schema({
     enum: getPrimaryMaterialTypes(),
     default: 'plastic',
   },
+  bulkMaterialType: [
+    {
+      type: String,
+      enum: getPrimaryMaterialTypes(),
+    }
+  ],
   quantity: {
     type: Number,
     required: false,

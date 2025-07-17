@@ -50,6 +50,7 @@ app.use('/uploads', express.static('uploads'))
 // all routes
 const routes = require('./routes/index')
 app.use('/api', routes)
+require('./analytics/main')
 
 // export app
 module.exports = app

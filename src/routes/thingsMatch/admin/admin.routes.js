@@ -11,6 +11,6 @@ router.use(isAuth);
 router.get("/users", thingsMatchAuthController.getAllUsers);
 router.get("/items", itemController.adminGetAllItems);
 router.get("/matches", matchController.adminGetAllMatches);
-router.get("/users/:userId", thingsMatchAuthController.getUserById);
+router.get("/users/:id", thingsMatchAuthController.getUserById);
 
 module.exports = router;

@@ -12,6 +12,7 @@ exports.createSimpleDropOffLocation = catchAsync(async (req, res) => {
     longitude,
     address,
     materialType,
+    bulkMaterialTypes,
     acceptedSubtypes,
     organizationName,
     verificationRequired,
@@ -19,6 +20,7 @@ exports.createSimpleDropOffLocation = catchAsync(async (req, res) => {
     operatingHours,
     contactNumber
   } = req.body;
+  console.log("Creating simple drop-off location with data:", req.body);
 
   // Validate required fields
   if (!name || !latitude || !longitude || !materialType) {
@@ -43,7 +45,7 @@ exports.createSimpleDropOffLocation = catchAsync(async (req, res) => {
       coordinates: [parseFloat(longitude), parseFloat(latitude)]
     },
     address: address?.trim(),
-    materialType,
+    bulkMaterialTypes: bulkMaterialTypes || [],
     acceptedSubtypes: acceptedSubtypes || [],
     organizationName: organizationName?.trim(),
     verificationRequired: verificationRequired || false,

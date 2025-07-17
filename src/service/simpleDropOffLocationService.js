@@ -6,10 +6,26 @@ const { getPrimaryMaterialTypes } = require("../models/enums/materialTypeHierarc
  */
 async function createSimpleDropOffLocation(locationData) {
   try {
-    // Validate material type
-    if (!getPrimaryMaterialTypes().includes(locationData.materialType)) {
-      throw new Error(`Invalid material type: ${locationData.materialType}`);
+    console.log("Creating simple drop-off location with data:", locationData.bulkMaterialTypes);
+    let materialTypes = locationData.bulkMaterialTypes;
+    let processedMaterialTypes = [];
+
+    // If bulkMaterialTypes is "All", get all primary material types
+    if (locationData.bulkMaterialTypes && Array.isArray(locationData.bulkMaterialTypes) && locationData.bulkMaterialTypes.length === 1 && locationData.bulkMaterialTypes[0] === "All") {
+      processedMaterialTypes = getPrimaryMaterialTypes();
     }
+    //otherwise
+    else if (locationData.bulkMaterialTypes && Array.isArray(locationData.bulkMaterialTypes) && locationData.bulkMaterialTypes.length > 0) {
+      const validTypes = getPrimaryMaterialTypes();
+      const invalidTypes = locationData.bulkMaterialTypes.filter(type => !validTypes.includes(type));
+      if (invalidTypes.length > 0) {
+        throw new Error(`Invalid bulk material types: ${invalidTypes.join(", ")}`);
+      }
+
+      processedMaterialTypes = locationData.bulkMaterialTypes;
+    }
+
+    console.log("Processed Material Types:", processedMaterialTypes);
 
     // Check for duplicate location within 50m radius
     const nearbyLocations = await SimpleDropOffLocation.find({
@@ -28,10 +44,23 @@ async function createSimpleDropOffLocation(locationData) {
     if (nearbyLocations.length > 0) {
       throw new Error("A location already exists within 50 meters of this position");
     }
-
+    console.log(locationData, processedMaterialTypes);
     const newLocation = new SimpleDropOffLocation({
-      ...locationData,
-      lastVerified: new Date()
+      name: locationData.name,
+      location: locationData.location,
+      address: locationData.address,
+      acceptedSubtypes: locationData.acceptedSubtypes || [],
+      organizationName: locationData.organizationName,
+      verificationRequired: locationData.verificationRequired || false,
+      maxItemsPerDropOff: locationData.maxItemsPerDropOff || 20,
+      operatingHours: locationData.operatingHours?.trim(),
+      contactNumber: locationData.contactNumber?.trim(),
+      createdAt: new Date(),
+      lastUpdated: new Date(),
+      isActive: true,
+      lastVerified: new Date(),
+      materialType: locationData.materialType,
+      bulkMaterialTypes: processedMaterialTypes,
     });
 
     return await newLocation.save();
@@ -58,7 +87,10 @@ async function getAllSimpleDropOffLocations(options = {}) {
 
     const query = {};
 
-    if (materialType) query.materialType = materialType;
+    // Filter by material type if provided - check if materialType is in the bulkMaterialTypes array
+    if (materialType) {
+      query.bulkMaterialTypes = { $in: [materialType] };
+    }
     if (typeof isActive === 'boolean') query.isActive = isActive;
     if (organizationName) {
       query.organizationName = { $regex: organizationName, $options: 'i' };
@@ -111,6 +143,29 @@ async function updateSimpleDropOffLocation(locationId, updateData) {
     // Validate material type if being updated
     if (updateData.materialType && !getPrimaryMaterialTypes().includes(updateData.materialType)) {
       throw new Error(`Invalid material type: ${updateData.materialType}`);
+    }
+
+    // Process bulkMaterialTypes if provided
+    if (updateData.bulkMaterialTypes) {
+      let processedMaterialTypes = [];
+
+      // If bulkMaterialTypes contains 'All', include all available material types
+      if (Array.isArray(updateData.bulkMaterialTypes) && updateData.bulkMaterialTypes.length === 1 && updateData.bulkMaterialTypes[0] === 'All') {
+        processedMaterialTypes = getPrimaryMaterialTypes();
+      }
+      // Otherwise validate each material type
+      else if (Array.isArray(updateData.bulkMaterialTypes)) {
+        const validTypes = getPrimaryMaterialTypes();
+        const invalidTypes = updateData.bulkMaterialTypes.filter(type => !validTypes.includes(type));
+
+        if (invalidTypes.length > 0) {
+          throw new Error(`Invalid bulk material types: ${invalidTypes.join(', ')}`);
+        }
+
+        processedMaterialTypes = updateData.bulkMaterialTypes;
+      }
+
+      updateData.bulkMaterialTypes = processedMaterialTypes;
     }
 
     const updatedLocation = await SimpleDropOffLocation.findByIdAndUpdate(
@@ -177,7 +232,10 @@ async function getNearbySimpleDropOffLocations(userCoordinates, options = {}) {
       isActive: true
     };
 
-    if (materialType) query.materialType = materialType;
+    // Filter by material type if provided - check if materialType is in the bulkMaterialTypes array
+    if (materialType) {
+      query.bulkMaterialTypes = { $in: [materialType] };
+    }
     if (organizationName) {
       query.organizationName = { $regex: organizationName, $options: 'i' };
     }
@@ -264,9 +322,10 @@ async function getLocationStatistics() {
 
     const materialTypeStats = await SimpleDropOffLocation.aggregate([
       { $match: { isActive: true } },
+      { $unwind: "$bulkMaterialTypes" },
       {
         $group: {
-          _id: "$materialType",
+          _id: "$bulkMaterialTypes",
           count: { $sum: 1 }
         }
       },
