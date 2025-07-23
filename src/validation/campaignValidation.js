@@ -6,7 +6,7 @@ const { getPrimaryMaterialTypes } = require('../models/enums/materialTypeHierarc
  */
 const validateCreateCampaign = [
   body('*').custom((value, { req }) => {
-    console.log('Create Campaign Request Body:', req.body);
+    // console.log('Create Campaign Request Body:', req.body);
     return true;
   }),
   body('name')
@@ -79,6 +79,7 @@ const validateCreateCampaign = [
   body('materialTypes')
     .optional()
     .custom((value) => {
+      console.log(value)
       if (!value) return true;
 
       // Handle special case "All"
@@ -86,17 +87,7 @@ const validateCreateCampaign = [
         return true;
       }
 
-      // Check each item in the array
-      if (Array.isArray(value)) {
-        const validTypes = getPrimaryMaterialTypes();
-        const invalidTypes = value.filter(type => !validTypes.includes(type));
-        if (invalidTypes.length > 0) {
-          throw new Error(`Invalid material types: ${invalidTypes.join(', ')}`);
-        }
-        return true;
-      }
-
-      throw new Error('Material types must be an array');
+      return new Error('Material types must be an array');
     }),
 
   body('goal')

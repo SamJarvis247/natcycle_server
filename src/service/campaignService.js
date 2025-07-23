@@ -10,7 +10,8 @@ const { getPrimaryMaterialTypes } = require('../models/enums/materialTypeHierarc
  */
 async function createCampaign(campaignData) {
   try {
-    const { name, organizationName, latitude, longitude, address, description, startDate, endDate, status, goal, materialTypes, dropOffLocationId, image } = campaignData;
+    const { name, organizationName, latitude, longitude, address, description, startDate, endDate, status, goal, dropOffLocationId, image } = campaignData;
+    let materialTypes = campaignData.materialTypes;
 
     // Check if campaign name already exists
     const existingCampaign = await Campaign.findOne({ name });
@@ -20,11 +21,16 @@ async function createCampaign(campaignData) {
 
     // Process materialTypes array
     let processedMaterialTypes = [];
-    console.log(materialTypes, "The MaterialTypes");
+    if (materialTypes === "All") {
+      console.log("true")
+      materialTypes = [materialTypes];
+    }
 
     // If materialTypes contains 'All', include all available material types
-    if (materialTypes && Array.isArray(materialTypes) && materialTypes.length === 1 && materialTypes[0] === 'All') {
+    if (materialTypes.length === 1 && materialTypes[0] === 'All') {
+      console.log("Material Type is All");
       processedMaterialTypes = getPrimaryMaterialTypes();
+      console.log("🚀 ~ createCampaign ~ processedMaterialTypes:", processedMaterialTypes);
     }
     // Otherwise validate each material type
     else if (materialTypes && Array.isArray(materialTypes)) {
