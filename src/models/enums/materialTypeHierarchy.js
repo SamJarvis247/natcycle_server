@@ -11,6 +11,22 @@ const materialTypeHierarchy = {
       { value: "plastic containers", label: "Plastic Containers" },
     ],
   },
+  // Primary type: organic
+  organic: {
+    label: "Organic",
+    subtypes: [
+      { value: "food waste", label: "Food Waste" },
+      { value: "garden waste", label: "Garden Waste" },
+    ],
+  },
+  // Primary type: fabric
+  fabric: {
+    label: "Fabric",
+    subtypes: [
+      { value: "clothing", label: "Clothing" },
+      { value: "textiles", label: "Textiles" },
+    ],
+  },
   // Primary type: glass
   glass: {
     label: "Glass",
@@ -37,14 +53,6 @@ const materialTypeHierarchy = {
       { value: "scrap metal", label: "Scrap Metal" },
     ],
   },
-  // Primary type: organic
-  organic: {
-    label: "Organic",
-    subtypes: [
-      { value: "food waste", label: "Food Waste" },
-      { value: "garden waste", label: "Garden Waste" },
-    ],
-  },
   // Primary type: eWaste
   ewaste: {
     label: "Electronic Waste",
@@ -52,14 +60,6 @@ const materialTypeHierarchy = {
       { value: "batteries", label: "Batteries" },
       { value: "small electronics", label: "Small Electronics" },
       { value: "large electronics", label: "Large Electronics" },
-    ],
-  },
-  // Primary type: fabric
-  fabric: {
-    label: "Fabric",
-    subtypes: [
-      { value: "clothing", label: "Clothing" },
-      { value: "textiles", label: "Textiles" },
     ],
   },
   aluminium: {
