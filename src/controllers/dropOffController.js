@@ -87,7 +87,6 @@ exports.addDropOff = async (req, res) => {
 
 
     for (const item of mainQuantity) {
-      console.log("Processing item for CU calculation: 😊", item);
       if (typeof item.units !== 'number' || item.units <= 0) {
         console.warn(`Skipping item due to invalid units:`, item);
         continue;
@@ -107,8 +106,6 @@ exports.addDropOff = async (req, res) => {
 
         if (cuResult && typeof cuResult.addedCU === 'number') {
           calculatedTotalCUforDropOff += cuResult.addedCU;
-          console.log(`CU added for ${item.materialType}: ${cuResult.addedCU}`);
-          console.log(`User's new total CU: ${cuResult.newTotalCU}`);
         } else {
           console.warn(`Failed to get CU result or addedCU for item:`, item, cuResult);
         }
@@ -117,10 +114,8 @@ exports.addDropOff = async (req, res) => {
       }
     }
 
-    console.log("Final Total CU calculated for this dropOff:", calculatedTotalCUforDropOff);
     dropOff.pointsEarned = calculatedTotalCUforDropOff;
 
-    console.log("DropOff object before saving: ", dropOff);
     await dropOff.save();
 
     res.status(201).json({
@@ -334,7 +329,6 @@ exports.getUserDropOffs = catchAsync(async (req, res) => {
   const populateDropOffLocation = await Promise.all(
     dropOffs.map(async (dropOff) => {
       const dropOffObject = dropOff.toObject() ? dropOff.toObject() : dropOff;
-      console.log("🚀 ~ dropOffs.map ~ dropOffObject:", dropOffObject)
       let dropOffLocation = null;
       if (dropOffObject.dropOffLocation) {
         dropOffLocation = await DropOffLocation.findById(
@@ -362,7 +356,6 @@ exports.getUserDropOffs = catchAsync(async (req, res) => {
 });
 
 exports.adminApproveDropOff = catchAsync(async (req, res) => {
-  console.log("GOT HERE");
   const dropOffId = req.params.id;
 
   if (!mongoose.Types.ObjectId.isValid(dropOffId)) {
@@ -382,25 +375,6 @@ exports.adminApproveDropOff = catchAsync(async (req, res) => {
     console.log("Error updating drop off:", err);
     return res.status(500).json({ message: "Error updating drop off" });
   });
-
-  // // Update user's CU and NatPoints if not already calculated
-  // if (!dropOff.pointsEarned) {
-  //   const cu = await cuCalculationService
-  //     .updateUserCU(dropOff.user, dropOff.itemType, dropOff.itemQuantity)
-  //     .then((cu) => {
-  //       cuCalculationService.updateUserNatPoints(dropOff.user, cu.newTotalCU);
-  //       return cu.newTotalCU;
-  //     })
-  //     .catch((err) => {
-  //       console.log("Error calculating CU:", err);
-  //       return null;
-  //     });
-
-  //   if (cu) {
-  //     dropOff.pointsEarned = cu;
-  //     await dropOff.save();
-  //   }
-  // }
 
   res.status(200).json({
     status: "success",
