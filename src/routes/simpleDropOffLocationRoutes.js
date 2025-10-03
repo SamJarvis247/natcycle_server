@@ -23,7 +23,8 @@ const {
   getNearbySimpleDropOffLocations,
   verifyLocationStatus,
   getLocationStatistics,
-  getSupportedMaterialTypes
+  getSupportedMaterialTypes,
+  searchSimpleDropOffLocations
 } = require('../controllers/simpleDropOffLocationController');
 
 /**
@@ -32,6 +33,9 @@ const {
 
 // Get nearby simple drop-off locations for users
 router.get('/nearby', validateGetNearbyLocations, handleValidationErrors, getNearbySimpleDropOffLocations);
+
+// Search simple drop-off locations for campaign creation
+router.get('/search', searchSimpleDropOffLocations);
 
 // Get supported material types
 router.get('/material-types', getSupportedMaterialTypes);

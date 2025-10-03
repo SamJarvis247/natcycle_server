@@ -1,5 +1,6 @@
 const Campaign = require('../models/campaignModel');
 const DropOffLocation = require('../models/dropOffLocationModel');
+const SimpleDropOffLocation = require('../models/simpleDropOffLocationModel');
 const PickUp = require('../models/pickUpModel');
 const DropOff = require('../models/dropOffModel');
 const User = require('../models/userModel');
@@ -10,7 +11,18 @@ const { getPrimaryMaterialTypes } = require('../models/enums/materialTypeHierarc
  */
 async function createCampaign(campaignData) {
   try {
-    const { name, organizationName, latitude, longitude, address, description, startDate, endDate, status, goal, dropOffLocationId, image } = campaignData;
+    const {
+      name,
+      organizationName,
+      description,
+      startDate,
+      endDate,
+      isIndefinite,
+      status,
+      goal,
+      locations, // New multi-location array
+      image
+    } = campaignData;
     let materialTypes = campaignData.materialTypes;
 
     // Check if campaign name already exists
@@ -44,12 +56,41 @@ async function createCampaign(campaignData) {
       processedMaterialTypes = materialTypes;
     }
 
-    // Verify drop-off location exists if provided
-    let dropOffLocation = null;
-    if (dropOffLocationId) {
-      dropOffLocation = await DropOffLocation.findById(dropOffLocationId);
-      if (!dropOffLocation) {
-        throw new Error('Drop-off location not found');
+    // Validate and process locations
+    const processedLocations = [];
+    for (const location of locations) {
+      if (location.simpleDropoffLocationId) {
+        // Verify simple dropoff location exists
+        const simpleLocation = await SimpleDropOffLocation.findById(location.simpleDropoffLocationId);
+        if (!simpleLocation) {
+          throw new Error(`Simple dropoff location not found: ${location.simpleDropoffLocationId}`);
+        }
+        processedLocations.push({
+          simpleDropoffLocationId: location.simpleDropoffLocationId
+        });
+      } else if (location.dropoffLocationId) {
+        // Verify dropoff location exists
+        const dropoffLocation = await DropOffLocation.findById(location.dropoffLocationId);
+        if (!dropoffLocation) {
+          throw new Error(`Dropoff location not found: ${location.dropoffLocationId}`);
+        }
+        processedLocations.push({
+          dropoffLocationId: location.dropoffLocationId
+        });
+      } else if (location.customLocation) {
+        // Validate custom location coordinates
+        const { coordinates, name: locName, address: locAddress } = location.customLocation;
+        if (!coordinates || coordinates.length !== 2) {
+          throw new Error('Custom location must have valid coordinates [longitude, latitude]');
+        }
+        processedLocations.push({
+          customLocation: {
+            type: 'Point',
+            coordinates: coordinates,
+            name: locName || 'Campaign Location',
+            address: locAddress || ''
+          }
+        });
       }
     }
 
@@ -57,8 +98,14 @@ async function createCampaign(campaignData) {
     const start = new Date(startDate);
     const end = endDate ? new Date(endDate) : null;
 
-    if (end && start >= end) {
+    // Only validate end date if campaign is not indefinite
+    if (!isIndefinite && end && start >= end) {
       throw new Error('End date must be after start date');
+    }
+
+    // If campaign is indefinite, ensure endDate is not set
+    if (isIndefinite && endDate) {
+      throw new Error('Indefinite campaigns cannot have an end date');
     }
 
     // Create the campaign
@@ -66,24 +113,22 @@ async function createCampaign(campaignData) {
       name,
       organizationName,
       description,
-      location: {
-        type: 'Point',
-        coordinates: [parseFloat(longitude), parseFloat(latitude)]
-      },
-      address,
+      locations: processedLocations,
       startDate: start,
       endDate: end,
+      isIndefinite: isIndefinite || false,
       status: status || 'active',
       materialTypes: processedMaterialTypes,
       goal: goal || 0,
-      image,
-      dropOffLocation: dropOffLocationId || null
+      image
     });
 
     const savedCampaign = await campaign.save();
 
+    // Populate the referenced locations
     return await Campaign.findById(savedCampaign._id)
-      .populate('dropOffLocation', 'name address materialType');
+      .populate('locations.simpleDropoffLocationId', 'name address materialType bulkMaterialTypes location')
+      .populate('locations.dropoffLocationId', 'name address primaryMaterialType itemType location');
 
   } catch (error) {
     console.error('Error creating campaign:', error);
@@ -111,7 +156,7 @@ async function getCampaigns(options = {}) {
 
     // Filter by material type if provided
     if (materialType) {
-      query.materialTypes = { $in: [materialType] }; // Check if materialType is in the array
+      query.materialTypes = { $in: [materialType] };
     }
 
     if (organizationName) query.organizationName = { $regex: organizationName, $options: 'i' };
@@ -125,7 +170,9 @@ async function getCampaigns(options = {}) {
       limit: parseInt(limit),
       sort: sortOptions,
       populate: [
-        { path: 'dropOffLocation', select: 'name address materialType' }
+        { path: 'locations.simpleDropoffLocationId', select: 'name address materialType bulkMaterialTypes location' },
+        { path: 'locations.dropoffLocationId', select: 'name address primaryMaterialType itemType location' },
+        { path: 'dropOffLocation', select: 'name address materialType' } // Keep for backward compatibility
       ]
     };
 
@@ -148,43 +195,102 @@ async function getNearbyCampaigns(latitude, longitude, options = {}) {
       status = 'active'
     } = options;
 
-    const query = {
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(longitude), parseFloat(latitude)]
-          },
-          $maxDistance: parseInt(radius)
-        }
-      },
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const maxDistance = parseInt(radius);
+
+    console.log(`🌍 Getting nearby campaigns within ${maxDistance}m of [${lat}, ${lng}]`);
+
+    // Build the base query for active campaigns
+    const baseQuery = {
       status,
       isHidden: { $ne: true }
     };
 
     // Filter by material type if provided
     if (materialType) {
-      query.materialTypes = { $in: [materialType] }; // Check if materialType is in the array
+      baseQuery.materialTypes = { $in: [materialType] };
     }
 
     // Only get active campaigns or campaigns that haven't ended
     const now = new Date();
-    query.$or = [
+    baseQuery.$or = [
       { endDate: { $exists: false } },
       { endDate: null },
       { endDate: { $gte: now } }
     ];
 
-    const campaigns = await Campaign.find(query)
+    // First, get all campaigns that match the base criteria
+    const allCampaigns = await Campaign.find(baseQuery)
       .populate('dropOffLocation', 'name address materialType')
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
+      .populate('locations.simpleDropoffLocationId', 'name address materialType bulkMaterialTypes location')
+      .populate('locations.dropoffLocationId', 'name address primaryMaterialType itemType location')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit) * 2); // Get more than needed to filter by distance
 
-    return campaigns;
+    // Filter campaigns by proximity to custom locations
+    const nearbyCampaigns = allCampaigns.filter(campaign => {
+      // If campaign has no locations array, include it (for backward compatibility)
+      if (!campaign.locations || campaign.locations.length === 0) {
+        return true;
+      }
+
+      // Check if any of the campaign's locations are within the radius
+      return campaign.locations.some(location => {
+        // For custom locations, calculate distance
+        if (location.customLocation && location.customLocation.coordinates) {
+          const [locationLng, locationLat] = location.customLocation.coordinates;
+          const distance = calculateDistance(lat, lng, locationLat, locationLng);
+          return distance <= maxDistance;
+        }
+
+        // For linked locations, check if they have coordinates
+        if (location.simpleDropoffLocationId && location.simpleDropoffLocationId.location) {
+          const coords = location.simpleDropoffLocationId.location.coordinates;
+          if (coords && coords.length === 2) {
+            const [locationLng, locationLat] = coords;
+            const distance = calculateDistance(lat, lng, locationLat, locationLng);
+            return distance <= maxDistance;
+          }
+        }
+
+        if (location.dropoffLocationId && location.dropoffLocationId.location) {
+          const coords = location.dropoffLocationId.location.coordinates;
+          if (coords && coords.length === 2) {
+            const [locationLng, locationLat] = coords;
+            const distance = calculateDistance(lat, lng, locationLat, locationLng);
+            return distance <= maxDistance;
+          }
+        }
+
+        // If no coordinates available, include the campaign
+        return true;
+      });
+    });
+
+    // Limit the results
+    const limitedCampaigns = nearbyCampaigns.slice(0, parseInt(limit));
+
+    console.log(`📍 Found ${limitedCampaigns.length} nearby campaigns`);
+
+    return limitedCampaigns;
   } catch (error) {
     console.error('Error fetching nearby campaigns:', error);
     throw error;
   }
+}
+
+// Helper function to calculate distance between two points (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 /**
@@ -192,8 +298,14 @@ async function getNearbyCampaigns(latitude, longitude, options = {}) {
  */
 async function getCampaignById(campaignId) {
   try {
+    console.log('🔍 Getting campaign by ID:', campaignId);
+
     const campaign = await Campaign.findById(campaignId)
-      .populate('dropOffLocation', 'name address materialType organizationName');
+      .populate('locations.simpleDropoffLocationId', 'name address materialType bulkMaterialTypes location')
+      .populate('locations.dropoffLocationId', 'name address primaryMaterialType itemType location')
+      .populate('dropOffLocation', 'name address materialType organizationName'); // Keep for backward compatibility
+
+    console.log('📊 Found campaign:', campaign ? 'YES' : 'NO');
 
     if (!campaign) {
       throw new Error('Campaign not found');
@@ -254,6 +366,17 @@ async function updateCampaign(campaignId, updateData) {
       }
     }
 
+    // Handle indefinite campaigns
+    if (updateData.isIndefinite !== undefined) {
+      const isIndefiniteFlag = updateData.isIndefinite === 'true' || updateData.isIndefinite === true;
+      updateData.isIndefinite = isIndefiniteFlag;
+
+      // If campaign is set to indefinite, remove endDate
+      if (isIndefiniteFlag) {
+        updateData.endDate = null;
+      }
+    }
+
     // Validate dates if being updated
     if (updateData.startDate || updateData.endDate) {
       const startDate = updateData.startDate ? new Date(updateData.startDate) : campaign.startDate;
@@ -262,6 +385,60 @@ async function updateCampaign(campaignId, updateData) {
       if (endDate && startDate >= endDate) {
         throw new Error('End date must be after start date');
       }
+    }
+
+    // Validate and process locations if being updated
+    if (updateData.locations) {
+      console.log('🔧 Processing locations for update:', JSON.stringify(updateData.locations, null, 2));
+      const processedLocations = [];
+      for (const location of updateData.locations) {
+        if (location.simpleDropoffLocationId) {
+          // Extract ID if it's a populated object, otherwise use as-is
+          let locationId = location.simpleDropoffLocationId;
+          if (typeof locationId === 'object' && locationId !== null) {
+            locationId = locationId._id || locationId.id;
+          }
+
+          // Verify simple dropoff location exists
+          const simpleLocation = await SimpleDropOffLocation.findById(locationId);
+          if (!simpleLocation) {
+            throw new Error(`Simple dropoff location not found: ${locationId}`);
+          }
+          processedLocations.push({
+            simpleDropoffLocationId: locationId
+          });
+        } else if (location.dropoffLocationId) {
+          // Extract ID if it's a populated object, otherwise use as-is
+          let locationId = location.dropoffLocationId;
+          if (typeof locationId === 'object' && locationId !== null) {
+            locationId = locationId._id || locationId.id;
+          }
+
+          // Verify dropoff location exists
+          const dropoffLocation = await DropOffLocation.findById(locationId);
+          if (!dropoffLocation) {
+            throw new Error(`Dropoff location not found: ${locationId}`);
+          }
+          processedLocations.push({
+            dropoffLocationId: locationId
+          });
+        } else if (location.customLocation) {
+          // Validate custom location coordinates
+          const { coordinates, name: locName, address: locAddress } = location.customLocation;
+          if (!coordinates || coordinates.length !== 2) {
+            throw new Error('Custom location must have valid coordinates [longitude, latitude]');
+          }
+          processedLocations.push({
+            customLocation: {
+              type: 'Point',
+              coordinates: coordinates,
+              name: locName || 'Campaign Location',
+              address: locAddress || ''
+            }
+          });
+        }
+      }
+      updateData.locations = processedLocations;
     }
 
     // Update location if coordinates are provided
@@ -278,7 +455,10 @@ async function updateCampaign(campaignId, updateData) {
       campaignId,
       { $set: updateData },
       { new: true, runValidators: true }
-    ).populate('dropOffLocation', 'name address materialType');
+    )
+      .populate('dropOffLocation', 'name address materialType')
+      .populate('locations.simpleDropoffLocationId', 'name address materialType bulkMaterialTypes location')
+      .populate('locations.dropoffLocationId', 'name address primaryMaterialType itemType location');
 
     return updatedCampaign;
   } catch (error) {
@@ -563,10 +743,27 @@ async function getCampaignStats(filters = {}) {
  */
 async function createCampaignDropOff(userId, campaignId, dropOffData) {
   try {
-    const { materialType, dropOffQuantity, description, latitude, longitude, proofPicture } = dropOffData;
+    const {
+      materialType,
+      dropOffQuantity,
+      description,
+      latitude,
+      longitude,
+      proofPicture,
+      campaignLocationIndex,
+      locationId,
+      locationType,
+      locationCoordinates,
+      customLocationName,
+      customLocationAddress
+    } = dropOffData;
 
-    // Get the campaign details
-    const campaign = await Campaign.findById(campaignId).populate('dropOffLocation');
+    // Get the campaign details with populated locations
+    const campaign = await Campaign.findById(campaignId)
+      .populate('locations.simpleDropoffLocationId', 'name address materialType bulkMaterialTypes location')
+      .populate('locations.dropoffLocationId', 'name address primaryMaterialType itemType location')
+      .populate('dropOffLocation'); // Legacy field
+
     if (!campaign) {
       throw new Error('Campaign not found');
     }
@@ -576,8 +773,8 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
       throw new Error(`Campaign is not active. Current status: ${campaign.status}`);
     }
 
-    // Check if campaign hasn't ended
-    if (campaign.endDate && new Date() > new Date(campaign.endDate)) {
+    // Check if campaign hasn't ended (unless it's indefinite)
+    if (!campaign.isIndefinite && campaign.endDate && new Date() > new Date(campaign.endDate)) {
       throw new Error('Campaign has ended');
     }
 
@@ -591,19 +788,69 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
       throw new Error(`This campaign only accepts ${campaign.materialTypes.join(', ')} materials, but you're trying to drop off ${materialType}`);
     }
 
-    // Validate user location is within range (100m tolerance)
-    const distanceToLocation = calculateDistance(
-      parseFloat(latitude),
-      parseFloat(longitude),
-      campaign.location.coordinates[1], // campaign latitude
-      campaign.location.coordinates[0]  // campaign longitude
-    );
+    // Validate campaign location information
+    if (campaignLocationIndex === undefined || locationType === undefined) {
+      throw new Error('Campaign location index and location type are required');
+    }
 
-    const maxDistance = 0.01; // 40 meters in kilometers
-    // if (distanceToLocation > maxDistance) {
-    //   throw new Error(`You must be within 400 meters of the campaign location. You are ${Math.round(distanceToLocation * 1000)}m away.`);
-    // }
-    // TODO: DO LATER
+    // Get the specific location from the campaign
+    let campaignLocation = null;
+    let dropOffLocationId = null;
+    let locationValidationCoords = null;
+
+    if (campaign.locations && campaign.locations.length > campaignLocationIndex) {
+      campaignLocation = campaign.locations[campaignLocationIndex];
+
+      if (locationType === 'simple' && campaignLocation.simpleDropoffLocationId) {
+        if (!locationId || locationId !== campaignLocation.simpleDropoffLocationId._id.toString()) {
+          console.log('Location ID comparison failed:', {
+            received: locationId,
+            expected: campaignLocation.simpleDropoffLocationId._id.toString(),
+            campaignLocationIndex
+          });
+          throw new Error('Invalid simple dropoff location ID for this campaign location');
+        }
+        dropOffLocationId = campaignLocation.simpleDropoffLocationId._id;
+        locationValidationCoords = campaignLocation.simpleDropoffLocationId.location?.coordinates;
+      } else if (locationType === 'centre' && campaignLocation.dropoffLocationId) {
+        if (!locationId || locationId !== campaignLocation.dropoffLocationId._id.toString()) {
+          console.log('Location ID comparison failed:', {
+            received: locationId,
+            expected: campaignLocation.dropoffLocationId._id.toString(),
+            campaignLocationIndex
+          });
+          throw new Error('Invalid dropoff centre location ID for this campaign location');
+        }
+        dropOffLocationId = campaignLocation.dropoffLocationId._id;
+        locationValidationCoords = campaignLocation.dropoffLocationId.location?.coordinates;
+      } else if (locationType === 'custom' && campaignLocation.customLocation) {
+        if (!customLocationAddress || !locationCoordinates) {
+          throw new Error('Custom location address and coordinates are required');
+        }
+        locationValidationCoords = locationCoordinates;
+      } else {
+        throw new Error('Location type does not match the campaign location configuration');
+      }
+    } else {
+      throw new Error('Invalid campaign location index');
+    }
+
+    // Validate user location is within range (if we have validation coordinates)
+    if (locationValidationCoords && Array.isArray(locationValidationCoords) && locationValidationCoords.length >= 2) {
+      const distanceToLocation = calculateDistance(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        locationValidationCoords[1], // location latitude
+        locationValidationCoords[0]  // location longitude
+      );
+
+      const maxDistance = 0.5; // 500 meters in kilometers
+      if (distanceToLocation > maxDistance) {
+        console.warn(`User is ${Math.round(distanceToLocation * 1000)}m away from campaign location. Allowing for flexibility.`);
+        // Note: We're being flexible with location validation for now
+        // throw new Error(`You must be within 500 meters of the campaign location. You are ${Math.round(distanceToLocation * 1000)}m away.`);
+      }
+    }
 
     // Validate and process dropOffQuantity
     let mainQuantity;
@@ -623,7 +870,7 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
     // Create the drop-off record
     const DropOff = require('../models/dropOffModel');
     const dropOff = new DropOff({
-      dropOffLocation: campaign.dropOffLocation ? campaign.dropOffLocation._id : null,
+      dropOffLocation: dropOffLocationId, // Use the specific location ID from campaign
       user: userId,
       itemType: materialType,
       dropOffQuantity: mainQuantity,
@@ -635,9 +882,19 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
       gpsCoordinates: {
         type: 'Point',
         coordinates: [parseFloat(longitude), parseFloat(latitude)]
-      }
+      },
+      // Add campaign location metadata
+      campaignLocationIndex: campaignLocationIndex,
+      campaignLocationType: locationType,
+      campaignLocationId: locationId,
+      ...(locationType === 'custom' && {
+        customLocationName,
+        customLocationAddress,
+        customLocationCoordinates: locationCoordinates
+      })
     });
-    console.log(dropOff, "THe NEW DROPOFF")
+
+    console.log(dropOff, "THE NEW DROPOFF")
 
     // Calculate and update user CU
     let calculatedTotalCUforDropOff = 0;
@@ -699,10 +956,16 @@ async function createCampaignDropOff(userId, campaignId, dropOffData) {
       campaign.save()
     ]);
 
-    return await DropOff.findById(dropOff._id)
+    // Return the saved dropoff with populated fields and ensure pointsEarned is included
+    const savedDropOff = await DropOff.findById(dropOff._id)
       .populate('dropOffLocation', 'name address')
       .populate('campaign', 'name organizationName')
       .populate('user', 'firstName lastName email');
+
+    // Ensure pointsEarned is included in the response
+    console.log("Campaign dropoff saved with CU:", savedDropOff.pointsEarned);
+
+    return savedDropOff;
 
   } catch (error) {
     console.error('Error creating campaign drop-off:', error);

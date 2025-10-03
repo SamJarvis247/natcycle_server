@@ -10,17 +10,30 @@ exports.createCampaign = catchAsync(async (req, res) => {
   const {
     name,
     organizationName,
-    latitude,
-    longitude,
-    address,
     description,
     startDate,
     endDate,
+    isIndefinite,
     status,
     goal,
     materialTypes,
-    dropOffLocationId
+    locations: locationsRaw
   } = req.body;
+
+  // Parse isIndefinite
+  const isIndefiniteFlag = isIndefinite === 'true';
+
+  // Parse locations if it's a string
+  let locations;
+  try {
+    locations = typeof locationsRaw === 'string' ? JSON.parse(locationsRaw) : locationsRaw;
+    console.log("🔥PARSED LOCATIONS IN CONTROLLER:", locations);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid locations format'
+    });
+  }
 
   // Validate and upload image if provided
   let image = null;
@@ -44,19 +57,41 @@ exports.createCampaign = catchAsync(async (req, res) => {
     });
   }
 
+  // Validate locations array
+  if (!locations || !Array.isArray(locations) || locations.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'At least one location is required'
+    });
+  }
+
+  // Validate each location
+  for (const location of locations) {
+    const hasSimpleDropoff = location.simpleDropoffLocationId;
+    const hasDropoff = location.dropoffLocationId;
+    const hasCustom = location.customLocation &&
+      location.customLocation.coordinates &&
+      location.customLocation.coordinates.length === 2;
+
+    if (!hasSimpleDropoff && !hasDropoff && !hasCustom) {
+      return res.status(400).json({
+        success: false,
+        message: 'Each location must have either a linked location ID or custom coordinates'
+      });
+    }
+  }
+
   const campaignData = {
     name,
     organizationName,
-    latitude,
-    longitude,
-    address,
     description,
     startDate,
-    endDate,
+    ...(isIndefiniteFlag ? {} : { endDate }),  // Only include endDate if not indefinite
+    isIndefinite: isIndefiniteFlag,
     status,
     goal,
     materialTypes,
-    dropOffLocationId,
+    locations,
     image
   };
 
@@ -151,6 +186,19 @@ exports.getCampaignById = catchAsync(async (req, res) => {
 exports.updateCampaign = catchAsync(async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
+
+  // Parse locations if it's a string
+  if (updateData.locations && typeof updateData.locations === 'string') {
+    try {
+      updateData.locations = JSON.parse(updateData.locations);
+      console.log("🔥PARSED LOCATIONS IN UPDATE:", updateData.locations);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid locations format'
+      });
+    }
+  }
 
   // Handle image upload if provided
   if (req.file) {
@@ -255,7 +303,13 @@ exports.createCampaignDropOff = catchAsync(async (req, res) => {
     dropOffQuantity,
     description,
     latitude,
-    longitude
+    longitude,
+    campaignLocationIndex,
+    locationId,
+    locationType,
+    locationCoordinates,
+    customLocationName,
+    customLocationAddress
   } = req.body;
 
   // Validate required fields
@@ -263,6 +317,30 @@ exports.createCampaignDropOff = catchAsync(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Material type, drop-off quantity, and GPS coordinates are required"
+    });
+  }
+
+  // Validate campaign location information
+  if (campaignLocationIndex === undefined || locationType === undefined) {
+    return res.status(400).json({
+      success: false,
+      message: "Campaign location index and location type are required"
+    });
+  }
+
+  // Validate location ID for linked locations
+  if ((locationType === 'simple' || locationType === 'centre') && !locationId) {
+    return res.status(400).json({
+      success: false,
+      message: "Location ID is required for linked dropoff locations"
+    });
+  }
+
+  // Validate custom location details
+  if (locationType === 'custom' && (!customLocationAddress || !locationCoordinates)) {
+    return res.status(400).json({
+      success: false,
+      message: "Custom location address and coordinates are required for custom locations"
     });
   }
 
@@ -290,21 +368,49 @@ exports.createCampaignDropOff = catchAsync(async (req, res) => {
     });
   }
 
+  // Parse location coordinates if provided
+  let parsedLocationCoordinates = null;
+  if (locationCoordinates) {
+    try {
+      parsedLocationCoordinates = JSON.parse(locationCoordinates);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid location coordinates format"
+      });
+    }
+  }
+
   const dropOffData = {
     materialType: materialType,
     dropOffQuantity,
     description,
     latitude,
     longitude,
-    proofPicture
+    proofPicture,
+    // Campaign location details
+    campaignLocationIndex: parseInt(campaignLocationIndex),
+    locationId,
+    locationType,
+    locationCoordinates: parsedLocationCoordinates,
+    customLocationName,
+    customLocationAddress
   };
 
   const newDropOff = await campaignService.createCampaignDropOff(req.user._id, campaignId, dropOffData);
 
+  console.log("Campaign dropoff response data:", {
+    pointsEarned: newDropOff.pointsEarned,
+    carbonUnits: newDropOff.pointsEarned
+  });
+
   res.status(201).json({
     success: true,
     message: 'Campaign drop-off completed successfully! You earned extra CU for participating in this campaign.',
-    data: newDropOff
+    data: {
+      ...newDropOff.toObject(),
+      carbonUnits: newDropOff.pointsEarned
+    }
   });
 });
 

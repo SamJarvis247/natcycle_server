@@ -247,3 +247,29 @@ exports.getSupportedMaterialTypes = catchAsync(async (req, res) => {
     data: materialTypes
   });
 });
+
+/**
+ * Search simple drop-off locations for campaign creation
+ */
+exports.searchSimpleDropOffLocations = catchAsync(async (req, res) => {
+  const { search, limit = 10, page = 1 } = req.query;
+
+  const searchResults = await simpleDropOffLocationService.searchLocations({
+    search,
+    limit: parseInt(limit),
+    page: parseInt(page)
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Simple drop-off locations retrieved successfully",
+    data: searchResults.docs,
+    pagination: {
+      currentPage: searchResults.page,
+      totalPages: searchResults.totalPages,
+      totalItems: searchResults.totalDocs,
+      hasNext: searchResults.hasNextPage,
+      hasPrev: searchResults.hasPrevPage
+    }
+  });
+});

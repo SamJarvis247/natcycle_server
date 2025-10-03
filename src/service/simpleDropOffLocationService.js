@@ -363,6 +363,40 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+/**
+ * Search simple drop-off locations for campaign creation
+ */
+async function searchLocations({ search, limit = 10, page = 1 }) {
+  try {
+    let query = { isActive: true };
+
+    if (search) {
+      query = {
+        ...query,
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { address: { $regex: search, $options: 'i' } },
+          { organizationName: { $regex: search, $options: 'i' } },
+          { materialType: { $regex: search, $options: 'i' } },
+          { bulkMaterialTypes: { $in: [new RegExp(search, 'i')] } }
+        ]
+      };
+    }
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      select: 'name address organizationName materialType bulkMaterialTypes location acceptedSubtypes verificationRequired',
+      sort: { name: 1 }
+    };
+
+    const result = await SimpleDropOffLocation.paginate(query, options);
+    return result;
+  } catch (error) {
+    throw new Error(`Error searching simple drop-off locations: ${error.message}`);
+  }
+}
+
 function toRadians(degrees) {
   return degrees * (Math.PI / 180);
 }
@@ -375,5 +409,6 @@ module.exports = {
   deleteSimpleDropOffLocation,
   getNearbySimpleDropOffLocations,
   verifyLocationStatus,
-  getLocationStatistics
+  getLocationStatistics,
+  searchLocations
 };

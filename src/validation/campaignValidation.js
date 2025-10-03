@@ -1,12 +1,8 @@
 const { body, query, param } = require('express-validator');
 const { getPrimaryMaterialTypes } = require('../models/enums/materialTypeHierarchy');
 
-/**
- * Validation for creating campaign
- */
 const validateCreateCampaign = [
   body('*').custom((value, { req }) => {
-    // console.log('Create Campaign Request Body:', req.body);
     return true;
   }),
   body('name')
@@ -23,25 +19,48 @@ const validateCreateCampaign = [
     .isLength({ min: 10, max: 1000 })
     .withMessage('Campaign description must be between 10 and 1000 characters'),
 
-  body('latitude')
-    .isFloat({ min: -90, max: 90 })
-    .withMessage('Latitude must be between -90 and 90'),
+  body('locations')
+    .custom((value) => {
+      let locations;
+      try {
+        locations = typeof value === 'string' ? JSON.parse(value) : value;
+      } catch (error) {
+        throw new Error('Locations must be valid JSON');
+      }
 
-  body('longitude')
-    .isFloat({ min: -180, max: 180 })
-    .withMessage('Longitude must be between -180 and 180'),
+      if (!Array.isArray(locations) || locations.length === 0) {
+        throw new Error('At least one location is required');
+      }
 
-  body('address')
-    .optional()
-    .trim()
-    .isLength({ max: 200 })
-    .withMessage('Address must not exceed 200 characters'),
+      for (const location of locations) {
+        const hasSimpleDropoff = location.simpleDropoffLocationId;
+        const hasDropoff = location.dropoffLocationId;
+        const hasCustom = location.customLocation &&
+          location.customLocation.coordinates &&
+          location.customLocation.coordinates.length === 2 &&
+          location.customLocation.address;
 
-  body('organizationName')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Organization name must not exceed 100 characters'),
+        if (!hasSimpleDropoff && !hasDropoff && !hasCustom) {
+          throw new Error('Each location must have either a linked location ID or complete custom location data (coordinates and address)');
+        }
+
+        if (location.customLocation && location.customLocation.coordinates) {
+          const [lng, lat] = location.customLocation.coordinates;
+          if (typeof lat !== 'number' || lat < -90 || lat > 90) {
+            throw new Error('Custom location latitude must be between -90 and 90');
+          }
+          if (typeof lng !== 'number' || lng < -180 || lng > 180) {
+            throw new Error('Custom location longitude must be between -180 and 180');
+          }
+        }
+      }
+
+      return true;
+    }), body('organizationName')
+      .optional()
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage('Organization name must not exceed 100 characters'),
 
   body('startDate')
     .isISO8601()
@@ -49,7 +68,7 @@ const validateCreateCampaign = [
     .custom((value) => {
       const startDate = new Date(value);
       const now = new Date();
-      now.setHours(0, 0, 0, 0); // Set to start of today
+      now.setHours(0, 0, 0, 0);
       if (startDate < now) {
         throw new Error('Start date cannot be in the past');
       }
@@ -58,15 +77,47 @@ const validateCreateCampaign = [
 
   body('endDate')
     .optional()
-    .isISO8601()
-    .withMessage('End date must be a valid date')
     .custom((value, { req }) => {
-      if (value && req.body.startDate) {
-        const startDate = new Date(req.body.startDate);
-        const endDate = new Date(value);
-        if (endDate <= startDate) {
-          throw new Error('End date must be after start date');
+      const isIndefiniteStr = req.body.isIndefinite;
+      const isIndefinite = isIndefiniteStr === 'true' || isIndefiniteStr === true;
+
+      if (isIndefinite && value && value.trim() !== '') {
+        throw new Error('Indefinite campaigns cannot have an end date');
+      }
+
+      if (!isIndefinite && value && value.trim() !== '') {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          throw new Error('End date must be a valid date in YYYY-MM-DD format');
         }
+
+        if (req.body.startDate) {
+          const startDate = new Date(req.body.startDate);
+          const endDate = new Date(value);
+          if (endDate <= startDate) {
+            throw new Error('End date must be after start date');
+          }
+        }
+      }
+
+      return true;
+    }),
+
+  body('isIndefinite')
+    .optional()
+    .custom((value, { req }) => {
+      const isIndefiniteStr = req.body.isIndefinite;
+
+      if (isIndefiniteStr !== undefined &&
+        isIndefiniteStr !== 'true' &&
+        isIndefiniteStr !== 'false' &&
+        typeof isIndefiniteStr !== 'boolean') {
+        throw new Error('isIndefinite must be a boolean or boolean string');
+      }
+
+      const isIndefinite = isIndefiniteStr === 'true' || isIndefiniteStr === true;
+
+      if (isIndefinite && req.body.endDate) {
+        throw new Error('Indefinite campaigns cannot have an end date');
       }
       return true;
     }),
@@ -82,7 +133,6 @@ const validateCreateCampaign = [
       console.log(value)
       if (!value) return true;
 
-      // Handle special case "All"
       if (Array.isArray(value) && value.length === 1 && value[0] === 'All') {
         return true;
       }
@@ -93,17 +143,9 @@ const validateCreateCampaign = [
   body('goal')
     .optional()
     .isInt({ min: 0 })
-    .withMessage('Goal must be a positive number'),
-
-  body('dropOffLocationId')
-    .optional()
-    .isMongoId()
-    .withMessage('Drop-off location ID must be a valid MongoDB ObjectId')
+    .withMessage('Goal must be a positive number')
 ];
 
-/**
- * Validation for updating campaign
- */
 const validateUpdateCampaign = [
   param('id')
     .isMongoId()
@@ -125,21 +167,47 @@ const validateUpdateCampaign = [
     .isLength({ min: 10, max: 1000 })
     .withMessage('Campaign description must be between 10 and 1000 characters'),
 
-  body('latitude')
+  body('locations')
     .optional()
-    .isFloat({ min: -90, max: 90 })
-    .withMessage('Latitude must be between -90 and 90'),
+    .custom((value) => {
+      if (!value) return true;
 
-  body('longitude')
-    .optional()
-    .isFloat({ min: -180, max: 180 })
-    .withMessage('Longitude must be between -180 and 180'),
+      let locations;
+      try {
+        locations = typeof value === 'string' ? JSON.parse(value) : value;
+      } catch (error) {
+        throw new Error('Locations must be valid JSON');
+      }
 
-  body('address')
-    .optional()
-    .trim()
-    .isLength({ max: 200 })
-    .withMessage('Address must not exceed 200 characters'),
+      if (!Array.isArray(locations) || locations.length === 0) {
+        throw new Error('If provided, at least one location is required');
+      }
+
+      for (const location of locations) {
+        const hasSimpleDropoff = location.simpleDropoffLocationId;
+        const hasDropoff = location.dropoffLocationId;
+        const hasCustom = location.customLocation &&
+          location.customLocation.coordinates &&
+          location.customLocation.coordinates.length === 2 &&
+          location.customLocation.address;
+
+        if (!hasSimpleDropoff && !hasDropoff && !hasCustom) {
+          throw new Error('Each location must have either a linked location ID or complete custom location data (coordinates and address)');
+        }
+
+        if (location.customLocation && location.customLocation.coordinates) {
+          const [lng, lat] = location.customLocation.coordinates;
+          if (typeof lat !== 'number' || lat < -90 || lat > 90) {
+            throw new Error('Custom location latitude must be between -90 and 90');
+          }
+          if (typeof lng !== 'number' || lng < -180 || lng > 180) {
+            throw new Error('Custom location longitude must be between -180 and 180');
+          }
+        }
+      }
+
+      return true;
+    }),
 
   body('organizationName')
     .optional()
@@ -167,12 +235,10 @@ const validateUpdateCampaign = [
     .custom((value) => {
       if (!value) return true;
 
-      // Handle special case "All"
       if (Array.isArray(value) && value.length === 1 && value[0] === 'All') {
         return true;
       }
 
-      // Check each item in the array
       if (Array.isArray(value)) {
         const validTypes = getPrimaryMaterialTypes();
         const invalidTypes = value.filter(type => !validTypes.includes(type));
@@ -198,17 +264,9 @@ const validateUpdateCampaign = [
   body('isHidden')
     .optional()
     .isBoolean()
-    .withMessage('isHidden must be a boolean'),
-
-  body('dropOffLocationId')
-    .optional()
-    .isMongoId()
-    .withMessage('Drop-off location ID must be a valid MongoDB ObjectId')
+    .withMessage('isHidden must be a boolean')
 ];
 
-/**
- * Validation for getting campaigns with pagination
- */
 const validateGetCampaigns = [
   query('page')
     .optional()
@@ -252,9 +310,6 @@ const validateGetCampaigns = [
     .withMessage('Include inactive must be a boolean')
 ];
 
-/**
- * Validation for getting nearby campaigns
- */
 const validateGetNearbyCampaigns = [
   query('latitude')
     .isFloat({ min: -90, max: 90 })
@@ -285,9 +340,6 @@ const validateGetNearbyCampaigns = [
     .withMessage('Status must be one of: active, completed, cancelled')
 ];
 
-/**
- * Validation for getting campaign contributors
- */
 const validateGetContributors = [
   param('id')
     .isMongoId()
@@ -304,9 +356,6 @@ const validateGetContributors = [
     .withMessage('Limit must be between 1 and 100')
 ];
 
-/**
- * Validation for getting campaign contributors details
- */
 const validateGetContributorsDetails = [
   param('id')
     .isMongoId()
@@ -323,9 +372,6 @@ const validateGetContributorsDetails = [
     .withMessage('Limit must be between 1 and 100')
 ];
 
-/**
- * Validation for date range queries
- */
 const validateDateRange = [
   query('startDate')
     .optional()
@@ -348,18 +394,12 @@ const validateDateRange = [
     })
 ];
 
-/**
- * Validation for MongoDB ObjectId parameters
- */
 const validateMongoId = [
   param('id')
     .isMongoId()
     .withMessage('Invalid ID format')
 ];
 
-/**
- * Validation for pagination
- */
 const validatePagination = [
   query('page')
     .optional()
@@ -372,9 +412,6 @@ const validatePagination = [
     .withMessage('Limit must be between 1 and 100')
 ];
 
-/**
- * Validation for creating campaign drop-off
- */
 const validateCreateCampaignDropOff = [
   param('id')
     .isMongoId()
@@ -416,9 +453,6 @@ const validateCreateCampaignDropOff = [
     .withMessage('Longitude must be between -180 and 180'),
 ];
 
-/**
- * Validation for getting all campaign dropoffs
- */
 const validateGetCampaignDropOffs = [
   query('page')
     .optional()
@@ -461,9 +495,6 @@ const validateGetCampaignDropOffs = [
     .withMessage('Sort order must be asc or desc')
 ];
 
-/**
- * Validate get campaign dropoffs by ID
- */
 const validateGetCampaignDropOffsById = [
   param('id')
     .isMongoId()

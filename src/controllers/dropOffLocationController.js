@@ -277,3 +277,45 @@ exports.updateDropOffLocation = async (req, res) => {
 };
 
 exports.getDropOffLocationMaterials = async (req, res) => { };
+
+// Search drop-off locations for campaign creation
+exports.searchDropOffLocations = async (req, res) => {
+  try {
+    const { search, limit = 10, page = 1 } = req.query;
+
+    let query = {};
+
+    if (search) {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { address: { $regex: search, $options: 'i' } },
+          { primaryMaterialType: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      select: 'name address primaryMaterialType itemType location acceptedSubtypes description',
+      sort: { name: 1 }
+    };
+
+    const result = await DropOffLocation.paginate(query, options);
+
+    res.status(200).json({
+      message: "Drop-off locations retrieved successfully",
+      data: result.docs,
+      pagination: {
+        currentPage: result.page,
+        totalPages: result.totalPages,
+        totalItems: result.totalDocs,
+        hasNext: result.hasNextPage,
+        hasPrev: result.hasPrevPage
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

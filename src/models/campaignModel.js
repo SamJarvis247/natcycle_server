@@ -19,28 +19,47 @@ const campaignSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
+  locations: [{
+    simpleDropoffLocationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SimpleDropOffLocation',
+      required: false
     },
-    coordinates: {
-      type: [Number],
-      required: true
+    dropoffLocationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DropOffLocation',
+      required: false
+    },
+    customLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        required: false
+      },
+      coordinates: {
+        type: [Number],
+        required: false
+      },
+      name: {
+        type: String,
+        required: false
+      },
+      address: {
+        type: String,
+        required: false
+      }
     }
-  },
-  address: {
-    type: String,
-    required: false,
-    trim: true
-  },
+  }],
   startDate: {
     type: Date,
     required: true
   },
   endDate: {
     type: Date
+  },
+  isIndefinite: {
+    type: Boolean,
+    default: false
   },
   isHidden: {
     type: Boolean,
@@ -102,7 +121,11 @@ const campaignSchema = new mongoose.Schema({
 
 campaignSchema.plugin(mongoosePaginate)
 
-campaignSchema.index({ location: '2dsphere' });
+// Add indexes for the new locations array structure
+campaignSchema.index({ 'locations.customLocation': '2dsphere' });
+campaignSchema.index({ status: 1 });
+campaignSchema.index({ endDate: 1 });
+campaignSchema.index({ createdAt: -1 });
 
 const Campaign = mongoose.model('Campaign', campaignSchema)
 
