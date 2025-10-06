@@ -26,11 +26,6 @@ const simpleDropOffLocationSchema = new mongoose.Schema({
     required: false,
     trim: true
   },
-  materialType: {
-    type: String,
-    enum: getPrimaryMaterialTypes(),
-    default: 'plastic'
-  },
   bulkMaterialTypes: [
     {
       type: String,

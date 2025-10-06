@@ -6,6 +6,7 @@ const { getPrimaryMaterialTypes } = require("../models/enums/materialTypeHierarc
  */
 async function createSimpleDropOffLocation(locationData) {
   try {
+    console.log("Location Data Received:", locationData);
     console.log("Creating simple drop-off location with data:", locationData.bulkMaterialTypes);
     let materialTypes = locationData.bulkMaterialTypes;
     let processedMaterialTypes = [];
@@ -59,7 +60,6 @@ async function createSimpleDropOffLocation(locationData) {
       lastUpdated: new Date(),
       isActive: true,
       lastVerified: new Date(),
-      materialType: locationData.materialType,
       bulkMaterialTypes: processedMaterialTypes,
     });
 
@@ -140,11 +140,6 @@ async function getSimpleDropOffLocationById(locationId) {
  */
 async function updateSimpleDropOffLocation(locationId, updateData) {
   try {
-    // Validate material type if being updated
-    if (updateData.materialType && !getPrimaryMaterialTypes().includes(updateData.materialType)) {
-      throw new Error(`Invalid material type: ${updateData.materialType}`);
-    }
-
     // Process bulkMaterialTypes if provided
     if (updateData.bulkMaterialTypes) {
       let processedMaterialTypes = [];
