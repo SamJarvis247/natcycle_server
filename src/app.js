@@ -26,6 +26,15 @@ app.get('/', (req, res) => {
   res.send("Welcome to FIdelity API You don't have access 😛")
 })
 
+// Health check endpoint for Railway
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  })
+})
+
 // logger to see what routes are being hit
 const myLogger = function (req, res, next) {
   console.log('route ' + req.method, req.url)
