@@ -27,34 +27,41 @@ initializeSocketIO(io);
 
 app.set('socketio', io);
 
-// connect to mongoDB
-mongoose
-  .connect(config.uri, config.options)
-  .then(async () => {
-    console.log("Connected to MongoDB");
-    // Ensure indexes for Item model
-    await Item.createIndexes();
-    console.log("Item indexes ensured.");
-
-    // try {
-    //   await RedisService.connect()
-    //   console.log('Connected to Redis')
-    // } catch (err) {
-    //   console.error('Failed to connect to Redis:', err)
-    //   console.log('Server will continue without Redis functionality')
-    // }
-    console.log("Redis functionality disabled temporarily");
-  })
-  .catch((err) => {
-    console.error("Failed to connect to MongoDB:", err);
-  });
-
-// start server
+// start server first for health checks
 const port = process.env.PORT || "5000";
 
-httpServer.listen(port, () => { // Use httpServer to listen
+httpServer.listen(port, () => {
   console.log(`App running on port ${port}...`);
   console.log(`Socket.IO initialized and listening on port ${port}`);
+  console.log(`Health check available at http://localhost:${port}/api/health`);
 });
+
+// connect to mongoDB after server starts
+if (config.uri) {
+  mongoose
+    .connect(config.uri, config.options)
+    .then(async () => {
+      console.log("Connected to MongoDB");
+      // Ensure indexes for Item model
+      await Item.createIndexes();
+      console.log("Item indexes ensured.");
+
+      // try {
+      //   await RedisService.connect()
+      //   console.log('Connected to Redis')
+      // } catch (err) {
+      //   console.error('Failed to connect to Redis:', err)
+      //   console.log('Server will continue without Redis functionality')
+      // }
+      console.log("Redis functionality disabled temporarily");
+    })
+    .catch((err) => {
+      console.error("Failed to connect to MongoDB:", err);
+      console.log("Server continuing without database connection");
+    });
+} else {
+  console.log("No MongoDB URI provided. Server running without database connection.");
+  console.log("Set MONGO_URI or DATABASE_URL environment variable to connect to database.");
+}
 
 // This will automatically start the scheduler

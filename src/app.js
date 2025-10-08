@@ -23,16 +23,29 @@ app.use(helmet())
 app.use(morgan('dev'))
 
 app.get('/', (req, res) => {
-  res.send("Welcome to FIdelity API You don't have access 😛")
+  res.send("Welcome to NatCycle API You don't have access 😛")
 })
 
-// Health check endpoint for Railway
+// Health check endpoint for Railway - works before DB connection
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  })
+  try {
+    const healthData = {
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.version
+    }
+
+    res.status(200).json(healthData)
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    })
+  }
 })
 
 // logger to see what routes are being hit
