@@ -8,6 +8,7 @@ module.exports = {
     "http://localhost:5500",
     "https://nat-cycle.vercel.app",
     "https://natcycle.netlify.app",
+    "https://natcycle.up.railway.app",
   ],
   optionSuccessStatus: 200,
   credentials: true,
